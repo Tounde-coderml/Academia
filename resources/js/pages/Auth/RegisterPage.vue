@@ -29,6 +29,7 @@ function submit(): void {
     <AuthLayout
         title="Créer un compte"
         description="Inscris-toi pour accéder à ton espace Academia."
+        with-slideshow
     >
         <div
             v-if="Object.keys(form.errors).length"

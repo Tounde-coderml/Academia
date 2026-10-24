@@ -1,6 +1,7 @@
 import { mount, flushPromises } from "@vue/test-utils";
 import { reactive } from "vue";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import AuthLayout from "../../components/AuthLayout.vue";
 import LoginPage from "./LoginPage.vue";
 import RegisterPage from "./RegisterPage.vue";
 import ResetPassword from "./ResetPassword.vue";
@@ -42,6 +43,40 @@ describe("authentication forms", () => {
 
         mocks.useForm.mockReturnValue(form);
         mocks.usePage.mockReturnValue({ props: { flash: {} } });
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
+        vi.unstubAllGlobals();
+    });
+
+    it("automatically advances slideshow images every three seconds", async () => {
+        vi.useFakeTimers();
+        vi.stubGlobal(
+            "matchMedia",
+            vi.fn().mockReturnValue({ matches: false }),
+        );
+
+        const wrapper = mount(AuthLayout, {
+            props: {
+                title: "Connexion",
+                description: "Connecte-toi à ton espace Academia.",
+                withSlideshow: true,
+            },
+        });
+
+        expect(wrapper.text()).toContain(
+            "Un espace pour apprendre et progresser ensemble.",
+        );
+
+        await vi.advanceTimersByTimeAsync(3000);
+        await flushPromises();
+
+        expect(wrapper.text()).toContain(
+            "Retrouve les ressources de ta communauté académique.",
+        );
+
+        wrapper.unmount();
     });
 
     it("clears the password after a login error and keeps the email", async () => {

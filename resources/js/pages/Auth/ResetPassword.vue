@@ -34,6 +34,7 @@ function submit(): void {
     <AuthLayout
         title="Choisir un nouveau mot de passe"
         description="Crée un mot de passe long et unique. Tu peux utiliser ton gestionnaire de mots de passe et coller le mot de passe."
+        with-slideshow
     >
         <div
             v-if="Object.keys(form.errors).length"

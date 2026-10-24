@@ -27,6 +27,7 @@ function submit(): void {
     <AuthLayout
         title="Connexion"
         description="Connecte-toi à ton espace Academia avec ton adresse e-mail et ton mot de passe."
+        with-slideshow
     >
         <p
             v-if="page.props.flash.status"

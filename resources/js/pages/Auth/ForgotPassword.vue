@@ -20,6 +20,7 @@ function submit(): void {
     <AuthLayout
         title="Réinitialiser le mot de passe"
         description="Indique l’adresse e-mail du compte. Si elle correspond à un compte, tu recevras un lien de réinitialisation."
+        with-slideshow
     >
         <p
             v-if="page.props.flash.status"
