@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Rules\PasswordMustNotMatchEmail;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -32,6 +33,7 @@ class NewPasswordRequest extends FormRequest
                 'string',
                 'min:15',
                 'confirmed',
+                new PasswordMustNotMatchEmail((string) $this->input('email', '')),
                 function (string $attribute, mixed $value, Closure $fail): void {
                     $maximumBytes = config('hashing.driver') === 'bcrypt' ? 72 : 1024;
 

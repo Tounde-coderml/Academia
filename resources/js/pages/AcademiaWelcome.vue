@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { Head, useForm } from "@inertiajs/vue3";
+import { Head, Link, useForm } from "@inertiajs/vue3";
 
 defineProps<{
     title?: string;
     userName?: string | null;
     isAuthenticated?: boolean;
+    canManageUsers?: boolean;
 }>();
 
 const logoutForm = useForm({});
@@ -36,6 +37,13 @@ function logout(): void {
             <p v-if="userName" class="mt-4 text-sm text-slate-700">
                 Connecté en tant que {{ userName }}.
             </p>
+            <Link
+                v-if="canManageUsers"
+                href="/admin/utilisateurs"
+                class="mt-6 inline-flex min-h-11 items-center rounded-lg border border-indigo-800 px-5 text-sm font-semibold text-indigo-900 hover:bg-indigo-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-800"
+            >
+                Gérer les comptes
+            </Link>
             <form v-if="isAuthenticated" class="mt-6" @submit.prevent="logout">
                 <button
                     type="submit"

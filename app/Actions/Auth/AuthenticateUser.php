@@ -28,7 +28,11 @@ class AuthenticateUser
             return LoginAttemptResult::Throttled;
         }
 
-        if (! Auth::attempt(['email' => $email, 'password' => $password])) {
+        if (! Auth::attempt([
+            'email' => $email,
+            'password' => $password,
+            'is_active' => true,
+        ])) {
             RateLimiter::hit($identityIpKey, 60);
             RateLimiter::hit($ipKey, 60);
 

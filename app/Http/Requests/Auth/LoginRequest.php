@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Rules\PasswordMustNotMatchEmail;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
@@ -25,7 +26,12 @@ class LoginRequest extends FormRequest
     {
         return [
             'email' => ['required', 'string', 'email', 'max:254'],
-            'password' => ['required', 'string', 'max:1024'],
+            'password' => [
+                'required',
+                'string',
+                'max:1024',
+                new PasswordMustNotMatchEmail((string) $this->input('email', '')),
+            ],
         ];
     }
 

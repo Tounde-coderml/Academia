@@ -1,7 +1,7 @@
 # Plan d’implémentation — M1 Authentification et accès
 
-> Version 1.9 — 22 octobre 2026
-> Statut : étapes 0 à 4 validées techniquement ; SMTP Gmail répond mais rejette l’authentification.
+> Version 1.11 — 24 octobre 2026
+> Statut : étapes 0 à 4 validées techniquement ; e-mail SMTP d’essai reçu et confirmé le 24 octobre 2026.
 > Projet : Academia — Module 1 de l’architecture de la Bibliothèque des Épreuves ESGC VAK.
 
 ## 1. Identification
@@ -12,8 +12,8 @@
 | Auteur | Équipe Academia, à confirmer |
 | Validateur métier | Demandeur, approbation reçue le 22 octobre 2026 ; nom et fonction à compléter si requis |
 | Date | 22 octobre 2026 |
-| Version | 1.9 |
-| Statut | Étapes 0 à 4 validées techniquement ; SMTP Gmail répond mais rejette l’authentification |
+| Version | 1.11 |
+| Statut | Étapes 0 à 4 validées techniquement ; e-mail SMTP d’essai reçu et confirmé le 24 octobre 2026 |
 
 Ce plan reprend le module M1 de l’architecture logicielle et la trame du guide « Avant de coder un module ». Les décisions D01 à D10 et la matrice d’accès ont été approuvées par le demandeur le 22 octobre 2026 ; les validations d’exécution sont consignées séparément pour chaque étape.
 
@@ -52,7 +52,7 @@ Objectifs :
 
 - Création, modification, désactivation et suppression des comptes : responsabilité du M2 « Comptes utilisateurs ».
 - Affectation et administration des rôles et permissions : à coordonner avec M2 et l’administration ; M1 applique les droits, mais ne définit pas seul la politique métier.
-- Inscription publique, vérification d’adresse e-mail, authentification multifacteur, connexion sociale et API de jetons : non demandées à ce stade.
+- Vérification obligatoire d’adresse e-mail, authentification multifacteur, connexion sociale et API de jetons : non demandées à ce stade. L’inscription publique des étudiants est réintégrée par la décision D11.
 - Autorisations propres aux épreuves et aux fichiers : chaque module concerné devra fournir ses règles et policies, en s’appuyant sur le socle M1.
 
 ## 4. Existant, stack et contraintes
@@ -63,13 +63,13 @@ Les éléments ci-dessous ont été observés dans le dépôt. « Présent » d�
 | --- | --- | --- |
 | Backend | Laravel `^13.17` et PHP `^8.3` déclarés ; Laravel 13.36.0 et PHP CLI 8.4.22 installés | Vérifier les versions et la configuration de déploiement sur chaque environnement avant la livraison. |
 | Interface | Inertia, Vue 3 et TypeScript déclarés dans `package.json` ; pages d’authentification sous `resources/js/pages/Auth/` | Réutiliser les pages et conventions présentes ; ne pas remplacer la stack par Blade/Bootstrap. |
-| Comptes | Modèle `User` et migration `users` présents ; e-mail unique, mot de passe, `remember_token` et `email_verified_at` | Confirmer si la vérification d’e-mail et l’état actif/inactif sont requis. Aucun champ d’état actif n’est présent dans cette migration. |
-| Rôles | Dépendance Spatie Permission et migration des tables de rôles/permissions présentes | Le modèle `User` observé n’utilise pas encore `HasRoles`. Vérifier et valider l’intégration avant de l’activer. |
+| Comptes | Modèle `User` et migration `users` présents ; e-mail unique, mot de passe, `remember_token` et `email_verified_at`. M2 a depuis ajouté `is_active` et la suppression logique. | M1 fournit l’authentification ; le statut actif du compte est contrôlé par le middleware livré avec M2. |
+| Rôles | Dépendance Spatie Permission, tables et intégration `HasRoles` du modèle `User` présentes depuis M1/M2 | Les autorisations sont appliquées côté serveur ; M2 gère l’affectation des rôles et ne modifie pas leur matrice. |
 | Authentification | Routes web `guest`/`auth`, Actions, Form Requests et contrôleurs présents | Auditer puis compléter ce qui manque ; éviter de créer un deuxième mécanisme d’authentification. |
 | Sessions | Table `sessions` créée par la migration initiale ; middleware `AuthenticateSession` configuré dans `bootstrap/app.php` | Vérifier le driver réellement utilisé par environnement et le comportement après changement de mot de passe. |
 | Réinitialisation | Table `password_reset_tokens`, Actions, notification et pages présentes | Vérifier expiration, usage unique, limitations, configuration e-mail et retours utilisateur. |
 | Tests | PHPUnit et `tests/Feature/AuthenticationTest.php` couvrent plusieurs parcours ; Vitest est déclaré côté interface | Étendre les tests existants avec les règles validées, sans supposer qu’un test de composant prouve le contrôle serveur. |
-| Base et exploitation | Configuration Laravel résolue : MySQL, cache database, sessions database et mailer `log` | Le mailer `log` ne constitue pas un envoi réel. Confirmer le transport e-mail, l’hébergement et la configuration de production avant la recette de livraison. |
+| Base et exploitation | MySQL, cache database et sessions database. Après un premier échec SMTP, un e-mail d’essai a été accepté et reçu le 24 octobre 2026. | La configuration d’envoi doit être maintenue dans les environnements de recette et de production. |
 
 ### Principaux fichiers repérés
 
@@ -98,7 +98,7 @@ Les règles suivantes sont les critères de conception proposés. Les seuils et 
 | R05 | Une session authentifiée ne donne accès qu’aux actions permises ; chaque action sensible vérifie côté serveur les permissions métier nécessaires. Le masquage d’un bouton ne constitue pas une autorisation. | Matrice de rôles et de permissions à confirmer ; l’authentification seule ne satisfait pas cette règle. |
 | R06 | La déconnexion est une mutation authentifiée en `POST`, invalide la session et régénère le jeton CSRF ; une ancienne session ne permet plus d’ouvrir une route privée. | Présent et couvert par des tests ciblés. |
 | R07 | Une demande de réinitialisation renvoie le même message public que le compte existe ou non ; les demandes sont limitées côté serveur. | Message générique présent et testé ; limites à valider. |
-| R08 | Un jeton de réinitialisation expiré, invalide ou déjà utilisé ne change pas le mot de passe. Le nouveau mot de passe est validé et stocké via le mécanisme de hachage Laravel. | Usage unique, validation et notification partiellement testés ; durée et politique à valider. |
+| R08 | Un jeton de réinitialisation expiré, invalide ou déjà utilisé ne change pas le mot de passe. Le nouveau mot de passe est validé et stocké via le mécanisme de hachage Laravel ; il ne peut pas être identique à l’adresse e-mail du compte, sans tenir compte de la casse. | Validations serveur à l’inscription, à la réinitialisation, à la connexion et à la création initiale de l’administrateur ; couverture Feature ajoutée. |
 | R09 | Une réinitialisation réussie ne laisse pas réutiliser les sessions précédentes selon la politique de session retenue ; elle ne connecte pas automatiquement l’utilisateur sans décision explicite. | Comportement après changement de mot de passe couvert par un test ; faire confirmer la politique attendue. |
 | R10 | Les journaux et les données envoyées à l’interface n’exposent jamais de mot de passe, jeton de réinitialisation, cookie ou identifiant de session. | Empreintes HMAC utilisées dans certaines traces ; revue complète des logs et props à effectuer. |
 
@@ -116,7 +116,7 @@ La matrice ci-dessous transforme les responsabilités macro de l’architecture 
 | Gérer les référentiels pédagogiques | Non | Non | Non dans le MVP proposé | Oui |
 | Consulter les indicateurs d’administration | Non | Périmètre de sa classe uniquement, à confirmer | Oui | Oui |
 
-Règles associées à la proposition : compte créé par l’établissement, aucune inscription publique ; tous les rôles ci-dessus sont authentifiés ; un refus d’accès est contrôlé côté serveur. L’accès aux épreuves non publiées reste défini par M4/M5, pas par cette matrice générale.
+Règles associées : l’inscription publique crée un compte étudiant ; seul un administrateur peut ensuite modifier le rôle par M2. Tous les rôles ci-dessus sont authentifiés et un refus d’accès est contrôlé côté serveur. L’accès aux épreuves non publiées reste défini par M4/M5, pas par cette matrice générale.
 
 ## 6. Données, routes web et interface
 
@@ -177,6 +177,8 @@ Les propositions ci-dessous rendent le plan directement exploitable. Elles s’a
 | D08 | Garder le cache database comme choix initial partagé ; utiliser `array`/`log` en tests isolés et configurer un transport e-mail réel avant recette de la réinitialisation. | Configuration locale vérifiée : cache database et mailer `log`. Aucun fournisseur de production n’est choisi ici. | Responsable technique | Approuvé par le demandeur, 22 octobre 2026 |
 | D09 | Les rôles et permissions restent dans Spatie Permission, guard `web`. La gestion des comptes et l’affectation des rôles relèvent de M2 ; M1 vérifie les permissions côté serveur. | Le package et les tables sont présents, mais `User` n’utilise pas encore `HasRoles`. Pas d’activation avant implémentation de M1/M2. | Responsable technique et métier | Approuvé par le demandeur, 22 octobre 2026 |
 | D10 | Pour le MVP, retenir une interface française et vérifier les formulaires au clavier, à 200 % de zoom et sur petit écran ; viser les critères WCAG 2.2 AA pertinents. | Le projet est francophone et le plan prévoit déjà les contrôles d’accessibilité ; la cible institutionnelle reste à confirmer. | Responsable projet / référent accessibilité | Approuvé par le demandeur, 22 octobre 2026 |
+| D11 | Réviser D02 : conserver l’inscription publique ; chaque nouveau compte reçoit le rôle `etudiant`. Seul un administrateur peut remplacer ce rôle par un autre rôle approuvé. Le premier administrateur est créé par une commande de configuration ponctuelle, sans identifiant par défaut codé en dur. | Décision explicite du demandeur pendant le cadrage M2 ; remplace la règle « aucune inscription publique » de D02. | Demandeur | Approuvé, 24 octobre 2026 |
+| D12 | Utiliser MySQL pour les tests PHPUnit avec la base dédiée `academia_test`, distincte de la base de développement. | Le demandeur confirme MySQL comme moteur du projet et choisit le nom de la base de test. | Demandeur / équipe technique | Approuvé, 24 octobre 2026 |
 
 Validation enregistrée : le demandeur a approuvé D01 à D10 et la matrice de la section 5 le 22 octobre 2026. Ajouter son nom et sa fonction si la procédure de l’établissement exige une identification nominative.
 
@@ -230,7 +232,7 @@ Vérifications réalisées le 22 octobre 2026 :
 - Décisions D01 à D10 et matrice d’accès approuvées par le demandeur le 22 octobre 2026 ; son nom et sa fonction ne sont pas renseignés.
 - L’étape 0 est validée pour le cadrage. Les étapes 1 et 2 ont ensuite été testées sur MySQL isolé ; l’absence de `pdo_sqlite` ne bloque plus cette validation.
 
-Limite : la commande de test standard de `phpunit.xml` utilise toujours SQLite en mémoire et nécessite `pdo_sqlite`. Pour l’exécution validée, conserver le schéma MySQL isolé `academia_m1_test_20261022` et ne jamais remplacer son nom par celui de la base applicative ou de production.
+À la date de cette étape, `phpunit.xml` utilisait SQLite en mémoire et exigeait `pdo_sqlite`. La décision D12 a ensuite remplacé ce réglage par MySQL et une base dédiée `academia_test` ; ne jamais remplacer son nom par celui de la base applicative ou de production. Les tests M1 de cette étape avaient utilisé le schéma isolé `academia_m1_test_20261022`.
 
 #### Validation
 
@@ -396,7 +398,7 @@ Vérifications réalisées le 22 octobre 2026 :
 - Tests ajoutés dans `tests/Feature/AuthenticationTest.php` : panne e-mail, limites des demandes et soumissions par identité et par IP, expiration réelle du jeton, et invalidation d’une session après reset via `ResetUserPassword`.
 - Suite complète M1 sur `academia_m1_test_20261022` : 23 tests réussis, 314 assertions.
 - Pint et `php -l` réussis pour `app/Actions/Auth/RequestPasswordReset.php` et `tests/Feature/AuthenticationTest.php`.
-- Configuration active : mailer `log`. Les tests vérifient le flux avec notifications simulées, mais aucun fournisseur e-mail réel n’est configuré ou testé.
+- Configuration active pendant cette étape : mailer `log`. La recette de l’étape 4 a ensuite configuré SMTP Gmail, sans parvenir à authentifier ni envoyer un vrai e-mail.
 - Fichiers modifiés pour cette étape : `app/Actions/Auth/RequestPasswordReset.php` et `tests/Feature/AuthenticationTest.php`.
 
 #### Validation
@@ -405,7 +407,7 @@ Validation backend : demandeur, 22 octobre 2026. Le flux et ses tests sont valid
 
 ### Étape 4 — Recetter l’interface et préparer la livraison
 
-**Statut :** recette front-end et intégration navigateur validées le 22 octobre 2026 ; configuration SMTP présente, authentification rejetée par Gmail.
+**Statut :** recette front-end et intégration navigateur validées le 22 octobre 2026 ; e-mail SMTP d’essai reçu et confirmé le 24 octobre.
 
 #### Objectif et prérequis
 
@@ -442,7 +444,8 @@ R01 à R10. Les tests de présentation ne remplacent pas les tests serveur. Aucu
 - [x] Vitest, type-check, ESLint, Prettier et build front-end réussis.
 - [x] Parcours navigateur de connexion, refus, dashboard, déconnexion, demande de lien et reset exécutés ; viewport 320 px sans débordement horizontal ; navigation clavier contrôlée.
 - [x] Défauts UI trouvés pendant la recette corrigés : champs secrets effacés après erreurs et titre du dashboard actualisé.
-- [ ] Authentification SMTP Gmail et envoi/réception d’un vrai e-mail vérifiés après configuration d’un mot de passe d’application valide.
+- [x] Le serveur SMTP a accepté un e-mail de test vers l’adresse configurée le 24 octobre 2026.
+- [x] Le demandeur confirme la réception du message dans la boîte configurée.
 
 #### Bilan d’exécution
 
@@ -458,11 +461,12 @@ Vérifications réalisées le 22 octobre 2026 :
 - Connectivité réseau SMTP testée sans authentification ni envoi : le serveur Gmail a répondu `220 smtp.gmail.com ESMTP`.
 - Test SMTP réel tenté vers `toudedy@gmail.com` : Gmail a rejeté l’authentification ; aucun message n’a été accepté.
 - Après mise à jour et `php artisan config:clear`, un nouvel essai avec un secret chargé de 16 caractères a encore été rejeté par Gmail ; aucun message n’a été accepté.
-- Aucun secret ni réponse SMTP brute n’a été affiché. Générer un mot de passe d’application Google valide (validation en deux étapes activée), le saisir localement, puis refaire un seul test.
+- Le 24 octobre 2026, après la configuration locale du SMTP, le serveur a accepté un e-mail d’essai et le demandeur en a confirmé la réception.
+- Aucun secret ni réponse SMTP brute n’a été affiché.
 
 #### Validation
 
-Validation technique : recette effectuée le 22 octobre 2026 ; étapes 0 à 4 validées pour les parcours testés. Clôture opérationnelle Gmail bloquée jusqu’à ce qu’un mot de passe d’application valide soit configuré et qu’un e-mail de test soit reçu.
+Validation technique : recette effectuée le 22 octobre 2026 ; étapes 0 à 4 validées pour les parcours testés. Le SMTP a accepté le courriel d’essai et le demandeur en a confirmé la réception le 24 octobre.
 
 ## 10. Recette globale et suivi
 
@@ -473,7 +477,7 @@ cd Academia
 php artisan test --compact tests/Feature/AuthenticationTest.php
 ```
 
-Les commandes front-end disponibles dans `package.json` incluent `npm run test:unit`, `npm run typecheck`, `npm run lint` et `npm run build`. Les exécuter selon les fichiers effectivement modifiés et reporter leurs résultats réels dans le bilan. La recette finale doit utiliser la base et les services prévus pour l’environnement de test ; les tests SQLite seuls ne prouvent pas le comportement d’une configuration MySQL/cache/e-mail différente.
+Les commandes front-end disponibles dans `package.json` incluent `npm run test:unit`, `npm run typecheck`, `npm run lint` et `npm run build`. Les exécuter selon les fichiers effectivement modifiés et reporter leurs résultats réels dans le bilan. Depuis D12, les tests PHPUnit utilisent la base MySQL isolée `academia_test`, distincte de la base applicative. La recette SMTP réelle reste indépendante des tests avec notifications simulées.
 
 ### Journal des décisions
 

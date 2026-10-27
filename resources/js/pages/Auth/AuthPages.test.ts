@@ -258,6 +258,58 @@ describe("authentication forms", () => {
         ).toBe("");
     });
 
+    it("shows the server password policy message on registration, reset, and login", async () => {
+        const message =
+            "Le mot de passe ne peut pas être identique à l’adresse e-mail.";
+        const registration = mount(RegisterPage, {
+            global: {
+                stubs: {
+                    AuthLayout: {
+                        props: ["title", "description"],
+                        template: "<main><slot /></main>",
+                    },
+                },
+            },
+        });
+        const registrationForm = mocks.useForm.mock.results.at(-1)?.value;
+        expect(registrationForm).toBeDefined();
+        registrationForm.errors.password = message;
+        await flushPromises();
+        expect(registration.get("#password-error").text()).toBe(message);
+        registration.unmount();
+
+        const reset = mount(ResetPassword, {
+            props: { token: "test-token", email: "student@example.test" },
+            global: {
+                stubs: {
+                    AuthLayout: {
+                        props: ["title", "description"],
+                        template: "<main><slot /></main>",
+                    },
+                },
+            },
+        });
+        mocks.useForm.mock.results.at(-1)!.value.errors.password = message;
+        await flushPromises();
+        expect(reset.get("#password-error").text()).toBe(message);
+        reset.unmount();
+
+        const login = mount(LoginPage, {
+            global: {
+                stubs: {
+                    AuthLayout: {
+                        props: ["title", "description"],
+                        template: "<main><slot /></main>",
+                    },
+                },
+            },
+        });
+        mocks.useForm.mock.results.at(-1)!.value.errors.password = message;
+        await flushPromises();
+        expect(login.get("#password-error").text()).toBe(message);
+        login.unmount();
+    });
+
     it("toggles reset password fields independently without changing their values", async () => {
         const wrapper = mount(ResetPassword, {
             props: {

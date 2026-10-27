@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
@@ -7,9 +8,7 @@ use App\Http\Controllers\Auth\RegisteredUserController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-Route::get('/', function () {
-    return Inertia::render('AcademiaWelcome');
-});
+Route::redirect('/', '/login')->name('home');
 
 Route::middleware('guest')->group(function (): void {
     Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
@@ -36,5 +35,20 @@ Route::get('/dashboard', function () {
         'title' => 'Espace Academia',
         'userName' => request()->user()?->name,
         'isAuthenticated' => true,
+        'canManageUsers' => request()->user()?->can('users.manage') ?? false,
     ]);
 })->middleware(['auth', 'can:dashboard.access'])->name('dashboard');
+
+Route::middleware(['auth', 'can:users.manage'])
+    ->prefix('admin/utilisateurs')
+    ->name('admin.users.')
+    ->group(function (): void {
+        Route::get('/', [UserController::class, 'index'])->name('index');
+        Route::post('/', [UserController::class, 'store'])->name('store');
+        Route::put('/{user}', [UserController::class, 'update'])->name('update');
+        Route::patch('/{user}/statut', [UserController::class, 'updateStatus'])->name('status');
+        Route::delete('/{user}', [UserController::class, 'destroy'])->name('destroy');
+        Route::patch('/{user}/restaurer', [UserController::class, 'restore'])
+            ->withTrashed()
+            ->name('restore');
+    });

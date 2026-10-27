@@ -70,4 +70,18 @@ class RegistrationTest extends TestCase
 
         $this->assertDatabaseMissing('users', ['email' => 'new-student@example.test']);
     }
+
+    public function test_registration_rejects_the_email_address_as_password_case_insensitively(): void
+    {
+        $this->from(route('register'))->post(route('register.store'), [
+            'name' => 'Tounde D.',
+            'email' => '  Tounde.LongAddress@example.test ',
+            'password' => 'TOUNDE.LONGADDRESS@EXAMPLE.TEST',
+            'password_confirmation' => 'TOUNDE.LONGADDRESS@EXAMPLE.TEST',
+        ])->assertSessionHasErrors([
+            'password' => 'Le mot de passe ne peut pas être identique à l’adresse e-mail.',
+        ]);
+
+        $this->assertDatabaseMissing('users', ['email' => 'tounde.longaddress@example.test']);
+    }
 }

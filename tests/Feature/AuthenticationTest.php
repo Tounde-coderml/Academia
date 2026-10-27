@@ -66,6 +66,26 @@ class AuthenticationTest extends TestCase
         $this->assertGuest();
     }
 
+    public function test_login_rejects_an_existing_account_password_that_matches_its_email(): void
+    {
+        $email = 'student.longaddress@example.test';
+        User::factory()->create([
+            'email' => $email,
+            'password' => $email,
+        ]);
+
+        $this->from(route('login'))->post(route('login.store'), [
+            'email' => strtoupper($email),
+            'password' => strtoupper($email),
+        ])->assertRedirect(route('login'))
+            ->assertSessionHasErrors([
+                'password' => 'Le mot de passe ne peut pas être identique à l’adresse e-mail.',
+            ])
+            ->assertSessionMissing('_old_input.password');
+
+        $this->assertGuest();
+    }
+
     public function test_login_temporarily_rejects_credentials_after_repeated_failures(): void
     {
         $user = User::factory()->create([
@@ -340,6 +360,30 @@ class AuthenticationTest extends TestCase
         ])->assertSessionHasErrors(['password']);
 
         $this->assertTrue(Hash::check('password', $user->fresh()->password));
+    }
+
+    public function test_password_reset_rejects_the_email_address_as_new_password(): void
+    {
+        $email = 'student.longaddress@example.test';
+        $user = User::factory()->create([
+            'email' => $email,
+            'password' => 'old-password-for-academia',
+        ]);
+        $token = Password::createToken($user);
+        Notification::fake();
+
+        $this->from(route('password.reset', ['token' => $token]))->post(route('password.update'), [
+            'email' => $email,
+            'token' => $token,
+            'password' => strtoupper($email),
+            'password_confirmation' => strtoupper($email),
+        ])->assertSessionHasErrors([
+            'password' => 'Le mot de passe ne peut pas être identique à l’adresse e-mail.',
+        ]);
+
+        $this->assertTrue(Hash::check('old-password-for-academia', $user->fresh()->password));
+        $this->assertDatabaseHas('password_reset_tokens', ['email' => $email]);
+        Notification::assertNothingSent();
     }
 
     public function test_existing_sessions_are_rejected_after_a_password_change(): void
