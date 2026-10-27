@@ -6,6 +6,7 @@ defineProps<{
     userName?: string | null;
     isAuthenticated?: boolean;
     canManageUsers?: boolean;
+    canManageReferentials?: boolean;
 }>();
 
 const logoutForm = useForm({});
@@ -43,6 +44,13 @@ function logout(): void {
                 class="mt-6 inline-flex min-h-11 items-center rounded-lg border border-indigo-800 px-5 text-sm font-semibold text-indigo-900 hover:bg-indigo-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-800"
             >
                 Gérer les comptes
+            </Link>
+            <Link
+                v-if="canManageReferentials"
+                href="/admin/filieres"
+                class="mt-6 inline-flex min-h-11 items-center rounded-lg border border-indigo-800 px-5 text-sm font-semibold text-indigo-900 hover:bg-indigo-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-800"
+            >
+                Gérer les référentiels
             </Link>
             <form v-if="isAuthenticated" class="mt-6" @submit.prevent="logout">
                 <button

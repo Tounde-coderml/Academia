@@ -1,10 +1,14 @@
 <?php
 
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\FiliereController;
+use App\Http\Controllers\Admin\MatiereController;
+use App\Http\Controllers\Admin\NiveauController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\RegisteredUserController;
+use App\Http\Controllers\ReferentielValuesController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -30,12 +34,47 @@ Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])
     ->middleware('auth')
     ->name('logout');
 
+Route::middleware('auth')->get('/referentiels/actifs', ReferentielValuesController::class)
+    ->name('referentiels.actifs');
+
+Route::middleware(['auth', 'can:academic_referentials.manage'])
+    ->prefix('admin')
+    ->name('admin.')
+    ->group(function (): void {
+        Route::resource('filieres', FiliereController::class)->except(['show']);
+        Route::post('filieres/{filiere}/desactiver', [FiliereController::class, 'deactivate'])
+            ->name('filieres.deactivate');
+        Route::post('filieres/{filiere}/reactiver', [FiliereController::class, 'reactivate'])
+            ->name('filieres.reactivate');
+
+        Route::resource('niveaux', NiveauController::class)->except(['show']);
+        Route::post('niveaux/{niveau}/desactiver', [NiveauController::class, 'deactivate'])
+            ->name('niveaux.deactivate');
+        Route::post('niveaux/{niveau}/reactiver', [NiveauController::class, 'reactivate'])
+            ->name('niveaux.reactivate');
+
+        Route::resource('matieres', MatiereController::class)->except(['show']);
+        Route::post('matieres/{matiere}/desactiver', [MatiereController::class, 'deactivate'])
+            ->name('matieres.deactivate');
+        Route::post('matieres/{matiere}/reactiver', [MatiereController::class, 'reactivate'])
+            ->name('matieres.reactivate');
+        Route::get('matieres/{matiere}/associations', [MatiereController::class, 'associations'])
+            ->name('matieres.associations');
+        Route::post('matieres/{matiere}/associations', [MatiereController::class, 'storeAssociation'])
+            ->name('matieres.associations.store');
+        Route::delete(
+            'matieres/{matiere}/associations/{association}',
+            [MatiereController::class, 'destroyAssociation'],
+        )->name('matieres.associations.destroy');
+    });
+
 Route::get('/dashboard', function () {
     return Inertia::render('AcademiaWelcome', [
         'title' => 'Espace Academia',
         'userName' => request()->user()?->name,
         'isAuthenticated' => true,
         'canManageUsers' => request()->user()?->can('users.manage') ?? false,
+        'canManageReferentials' => request()->user()?->can('academic_referentials.manage') ?? false,
     ]);
 })->middleware(['auth', 'can:dashboard.access'])->name('dashboard');
 
