@@ -130,6 +130,10 @@ class ReferentielsTest extends TestCase
             ->get(route('referentiels.actifs'))
             ->assertOk()
             ->assertExactJson([
+                'semestres' => [
+                    ['id' => 1, 'code' => 'S1', 'name' => 'Semestre 1'],
+                    ['id' => 2, 'code' => 'S2', 'name' => 'Semestre 2'],
+                ],
                 'filieres' => [[
                     'id' => $activeFiliere->id,
                     'code' => 'INFO',

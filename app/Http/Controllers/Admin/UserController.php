@@ -125,6 +125,8 @@ class UserController extends Controller
                 ]);
             }
 
+            $user->sendEmailVerificationNotification();
+
             $this->recordAudit($user, 'created', [
                 'role' => $role->name,
                 'fields' => ['name', 'email', 'role'],

@@ -20,7 +20,7 @@ class PasswordResetLinkController extends Controller
     {
         $sendResetLink->handle($request->validated('email'), (string) $request->ip());
 
-        return back()->with(
+        return to_route('password.request')->with(
             'status',
             'Si un compte correspond à cette adresse, un lien de réinitialisation lui sera envoyé.',
         );

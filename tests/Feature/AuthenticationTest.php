@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Actions\Auth\PasswordResetResult;
 use App\Actions\Auth\ResetUserPassword;
 use App\Models\User;
+use App\Notifications\Auth\LoginNotification;
 use App\Notifications\Auth\PasswordChangedNotification;
 use Database\Seeders\AccessControlSeeder;
 use Illuminate\Auth\Notifications\ResetPassword;
@@ -30,6 +31,7 @@ class AuthenticationTest extends TestCase
 
     public function test_valid_credentials_authenticate_and_rotate_the_session(): void
     {
+        Notification::fake();
         $user = User::factory()->create([
             'password' => 'correct-horse-battery-staple-2026',
         ]);
@@ -42,10 +44,30 @@ class AuthenticationTest extends TestCase
 
         $this->assertAuthenticatedAs($user);
         $this->assertNotSame($sessionIdBeforeLogin, $this->app['session']->driver()->getId());
+        Notification::assertSentTo($user, LoginNotification::class, function (
+            LoginNotification $notification,
+            array $channels,
+        ) use ($user): bool {
+            $mail = $notification->toMail($user);
+
+            return $channels === ['mail']
+                && $mail->subject === 'Nouvelle connexion à votre compte Academia'
+                && in_array(
+                    'Une connexion vient d’être effectuée sur votre compte Academia.',
+                    $mail->introLines,
+                    true,
+                )
+                && in_array(
+                    'Vous recevez automatiquement ce message à la suite de cette connexion.',
+                    $mail->introLines,
+                    true,
+                );
+        });
     }
 
     public function test_invalid_credentials_return_the_same_generic_error_for_known_and_unknown_accounts(): void
     {
+        Notification::fake();
         $user = User::factory()->create();
         $genericError = 'Adresse e-mail ou mot de passe incorrect.';
 
@@ -64,6 +86,7 @@ class AuthenticationTest extends TestCase
             ->assertSessionHasErrors(['email' => $genericError]);
 
         $this->assertGuest();
+        Notification::assertNothingSent();
     }
 
     public function test_login_rejects_an_existing_account_password_that_matches_its_email(): void
@@ -88,6 +111,7 @@ class AuthenticationTest extends TestCase
 
     public function test_login_temporarily_rejects_credentials_after_repeated_failures(): void
     {
+        Notification::fake();
         $user = User::factory()->create([
             'password' => 'correct-horse-battery-staple-2026',
         ]);
@@ -113,10 +137,12 @@ class AuthenticationTest extends TestCase
         ])->assertRedirectToRoute('dashboard');
 
         $this->assertAuthenticatedAs($user);
+        Notification::assertSentTo($user, LoginNotification::class);
     }
 
     public function test_login_temporarily_rejects_credentials_after_ip_wide_failures(): void
     {
+        Notification::fake();
         $user = User::factory()->create([
             'password' => 'correct-horse-battery-staple-2026',
         ]);
@@ -135,6 +161,7 @@ class AuthenticationTest extends TestCase
         ])->assertSessionHasErrors(['email' => $genericError]);
 
         $this->assertGuest();
+        Notification::assertNothingSent();
     }
 
     public function test_logout_invalidates_the_authenticated_session(): void
@@ -180,6 +207,19 @@ class AuthenticationTest extends TestCase
             ->assertSessionHas('status', $confirmation);
 
         Notification::assertSentTo($user, ResetPassword::class);
+    }
+
+    public function test_password_reset_request_without_a_previous_page_returns_to_the_request_form(): void
+    {
+        Notification::fake();
+
+        $this->post(route('password.email'), [
+            'email' => 'unknown@example.test',
+        ])->assertRedirectToRoute('password.request')
+            ->assertSessionHas(
+                'status',
+                'Si un compte correspond à cette adresse, un lien de réinitialisation lui sera envoyé.',
+            );
     }
 
     public function test_password_reset_request_keeps_a_generic_response_when_email_delivery_fails(): void

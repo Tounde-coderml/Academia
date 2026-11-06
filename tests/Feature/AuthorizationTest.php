@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use Database\Seeders\AccessControlSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -20,11 +21,13 @@ class AuthorizationTest extends TestCase
         $expectedPermissions = [
             'etudiant' => [
                 'dashboard.access',
+                'exams.submit',
                 'exams.view_published',
             ],
             'responsable_classe' => [
                 'dashboard.access',
                 'dashboard.view_class_stats',
+                'exams.review',
                 'exams.submit',
                 'exams.view_published',
             ],
@@ -40,6 +43,7 @@ class AuthorizationTest extends TestCase
                 'dashboard.access',
                 'dashboard.view_school_stats',
                 'exams.review',
+                'exams.manage',
                 'exams.submit',
                 'exams.view_published',
                 'users.manage',
@@ -47,7 +51,7 @@ class AuthorizationTest extends TestCase
         ];
 
         $this->assertDatabaseCount('roles', 4);
-        $this->assertDatabaseCount('permissions', 8);
+        $this->assertDatabaseCount('permissions', 9);
 
         foreach ($expectedPermissions as $roleName => $permissions) {
             $role = Role::findByName($roleName, 'web');
@@ -68,6 +72,31 @@ class AuthorizationTest extends TestCase
         $this->actingAs($user)
             ->get(route('dashboard'))
             ->assertOk();
+    }
+
+    public function test_dashboard_offers_student_deposit_and_class_manager_review_links(): void
+    {
+        $this->seed(AccessControlSeeder::class);
+        $student = User::factory()->create();
+        $student->assignRole('etudiant');
+        $manager = User::factory()->create();
+        $manager->assignRole('responsable_classe');
+
+        $this->actingAs($student)
+            ->get(route('dashboard'))
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('AcademiaWelcome')
+                ->where('canSubmitExams', true)
+                ->where('canReviewExams', false)
+                ->where('canManageExams', false));
+
+        $this->actingAs($manager)
+            ->get(route('dashboard'))
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('AcademiaWelcome')
+                ->where('canSubmitExams', true)
+                ->where('canReviewExams', true)
+                ->where('canManageExams', false));
     }
 
     public function test_authenticated_user_without_dashboard_permission_is_forbidden(): void

@@ -6,6 +6,7 @@ use App\Models\Filiere;
 use App\Models\FiliereNiveauMatiere;
 use App\Models\Matiere;
 use App\Models\Niveau;
+use App\Semestre;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 
@@ -14,6 +15,7 @@ class ReferentielValuesController extends Controller
     public function __invoke(): JsonResponse
     {
         return response()->json([
+            'semestres' => Semestre::options(),
             'filieres' => Filiere::query()
                 ->where('is_active', true)
                 ->orderBy('name')

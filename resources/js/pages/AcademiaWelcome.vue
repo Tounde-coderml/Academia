@@ -5,6 +5,9 @@ defineProps<{
     title?: string;
     userName?: string | null;
     isAuthenticated?: boolean;
+    canSubmitExams?: boolean;
+    canReviewExams?: boolean;
+    canManageExams?: boolean;
     canManageUsers?: boolean;
     canManageReferentials?: boolean;
 }>();
@@ -32,12 +35,39 @@ function logout(): void {
                 {{ title ?? "Bienvenue sur Academia" }}
             </h1>
             <p class="mt-4 max-w-2xl text-base text-slate-600 sm:text-lg">
-                Votre espace de gestion est prêt à accueillir ses premiers
-                modules.
+                Retrouvez vos dépôts et les épreuves de votre parcours.
             </p>
             <p v-if="userName" class="mt-4 text-sm text-slate-700">
                 Connecté en tant que {{ userName }}.
             </p>
+            <Link
+                v-if="isAuthenticated"
+                href="/mes-epreuves"
+                class="mt-6 inline-flex min-h-11 items-center rounded-lg border border-indigo-800 px-5 text-sm font-semibold text-indigo-900 hover:bg-indigo-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-800"
+            >
+                Mes épreuves
+            </Link>
+            <Link
+                v-if="canSubmitExams"
+                href="/epreuves/deposer"
+                class="mt-6 inline-flex min-h-11 items-center rounded-lg border border-indigo-800 px-5 text-sm font-semibold text-indigo-900 hover:bg-indigo-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-800"
+            >
+                Déposer une épreuve
+            </Link>
+            <Link
+                v-if="canReviewExams"
+                href="/admin/revue-epreuves"
+                class="mt-6 inline-flex min-h-11 items-center rounded-lg border border-indigo-800 px-5 text-sm font-semibold text-indigo-900 hover:bg-indigo-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-800"
+            >
+                Valider les dépôts
+            </Link>
+            <Link
+                v-if="canManageExams"
+                href="/admin/epreuves"
+                class="mt-6 inline-flex min-h-11 items-center rounded-lg border border-indigo-800 px-5 text-sm font-semibold text-indigo-900 hover:bg-indigo-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-800"
+            >
+                Gérer les épreuves
+            </Link>
             <Link
                 v-if="canManageUsers"
                 href="/admin/utilisateurs"

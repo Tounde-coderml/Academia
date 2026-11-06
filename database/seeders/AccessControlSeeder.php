@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 
 class AccessControlSeeder extends Seeder
 {
@@ -13,14 +14,18 @@ class AccessControlSeeder extends Seeder
      */
     public function run(): void
     {
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
         $roles = [
             'etudiant' => [
                 'dashboard.access',
+                'exams.submit',
                 'exams.view_published',
             ],
             'responsable_classe' => [
                 'dashboard.access',
                 'dashboard.view_class_stats',
+                'exams.review',
                 'exams.submit',
                 'exams.view_published',
             ],
@@ -36,6 +41,7 @@ class AccessControlSeeder extends Seeder
                 'dashboard.access',
                 'dashboard.view_school_stats',
                 'exams.review',
+                'exams.manage',
                 'exams.submit',
                 'exams.view_published',
                 'users.manage',
@@ -50,6 +56,8 @@ class AccessControlSeeder extends Seeder
         foreach ($permissions as $permission) {
             Permission::findOrCreate($permission, 'web');
         }
+
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         foreach ($roles as $roleName => $rolePermissions) {
             Role::findOrCreate($roleName, 'web')->syncPermissions($rolePermissions);

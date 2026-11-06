@@ -1,7 +1,7 @@
 # Plan d’implémentation — M1 Authentification et accès
 
-> Version 1.11 — 24 octobre 2026
-> Statut : étapes 0 à 4 validées techniquement ; e-mail SMTP d’essai reçu et confirmé le 24 octobre 2026.
+> Version 1.12 — 6 novembre 2026
+> Statut : M1 validé techniquement ; matrice de dépôt et de revue amendée le 6 novembre 2026 par décision M4.
 > Projet : Academia — Module 1 de l’architecture de la Bibliothèque des Épreuves ESGC VAK.
 
 ## 1. Identification
@@ -12,8 +12,8 @@
 | Auteur | Équipe Academia, à confirmer |
 | Validateur métier | Demandeur, approbation reçue le 22 octobre 2026 ; nom et fonction à compléter si requis |
 | Date | 22 octobre 2026 |
-| Version | 1.11 |
-| Statut | Étapes 0 à 4 validées techniquement ; e-mail SMTP d’essai reçu et confirmé le 24 octobre 2026 |
+| Version | 1.12 |
+| Statut | Étapes 0 à 4 validées techniquement ; matrice d’accès amendée le 6 novembre 2026 pour M4 |
 
 Ce plan reprend le module M1 de l’architecture logicielle et la trame du guide « Avant de coder un module ». Les décisions D01 à D10 et la matrice d’accès ont été approuvées par le demandeur le 22 octobre 2026 ; les validations d’exécution sont consignées séparément pour chaque étape.
 
@@ -110,13 +110,13 @@ La matrice ci-dessous transforme les responsabilités macro de l’architecture 
 | --- | --- | --- | --- | --- |
 | Se connecter, se déconnecter et réinitialiser son propre mot de passe | Oui, compte provisionné | Oui, compte provisionné | Oui, compte provisionné | Oui, compte provisionné |
 | Rechercher et consulter les épreuves publiées | Oui | Oui | Oui | Oui |
-| Déposer une épreuve à soumettre | Non dans le MVP proposé | Oui | Oui | Oui |
-| Valider ou refuser une épreuve | Non | Non | Oui | Oui |
+| Déposer une épreuve à soumettre | Oui, dépôt en attente de validation | Oui | Oui | Oui |
+| Valider ou refuser une épreuve | Non | Oui, tous les dépôts étudiants | Oui | Oui |
 | Gérer les comptes et attribuer les rôles | Non | Non | Non dans le MVP proposé | Oui, via M2 |
 | Gérer les référentiels pédagogiques | Non | Non | Non dans le MVP proposé | Oui |
 | Consulter les indicateurs d’administration | Non | Périmètre de sa classe uniquement, à confirmer | Oui | Oui |
 
-Règles associées : l’inscription publique crée un compte étudiant ; seul un administrateur peut ensuite modifier le rôle par M2. Tous les rôles ci-dessus sont authentifiés et un refus d’accès est contrôlé côté serveur. L’accès aux épreuves non publiées reste défini par M4/M5, pas par cette matrice générale.
+Règles associées : l’inscription publique crée un compte étudiant ; seul un administrateur peut ensuite modifier le rôle par M2. Tous les rôles ci-dessus sont authentifiés et un refus d’accès est contrôlé côté serveur. Le demandeur a révisé la matrice le 6 novembre 2026 pour autoriser les étudiants à déposer des épreuves en attente et les responsables de classe à valider tous les dépôts étudiants via M4.
 
 ## 6. Données, routes web et interface
 
@@ -179,8 +179,9 @@ Les propositions ci-dessous rendent le plan directement exploitable. Elles s’a
 | D10 | Pour le MVP, retenir une interface française et vérifier les formulaires au clavier, à 200 % de zoom et sur petit écran ; viser les critères WCAG 2.2 AA pertinents. | Le projet est francophone et le plan prévoit déjà les contrôles d’accessibilité ; la cible institutionnelle reste à confirmer. | Responsable projet / référent accessibilité | Approuvé par le demandeur, 22 octobre 2026 |
 | D11 | Réviser D02 : conserver l’inscription publique ; chaque nouveau compte reçoit le rôle `etudiant`. Seul un administrateur peut remplacer ce rôle par un autre rôle approuvé. Le premier administrateur est créé par une commande de configuration ponctuelle, sans identifiant par défaut codé en dur. | Décision explicite du demandeur pendant le cadrage M2 ; remplace la règle « aucune inscription publique » de D02. | Demandeur | Approuvé, 24 octobre 2026 |
 | D12 | Utiliser MySQL pour les tests PHPUnit avec la base dédiée `academia_test`, distincte de la base de développement. | Le demandeur confirme MySQL comme moteur du projet et choisit le nom de la base de test. | Demandeur / équipe technique | Approuvé, 24 octobre 2026 |
+| D13 | Réviser la matrice d’accès : autoriser les étudiants à déposer une épreuve, toujours en attente jusqu’à validation ; autoriser les responsables de classe à valider ou refuser tous les dépôts étudiants. La revue, la confirmation des doublons et les états relèvent de M4. | Décision de cadrage M4 ; remplace les anciennes cases étudiant « non » et responsable « non » pour dépôt/revue. | Demandeur | Approuvé, 6 novembre 2026 |
 
-Validation enregistrée : le demandeur a approuvé D01 à D10 et la matrice de la section 5 le 22 octobre 2026. Ajouter son nom et sa fonction si la procédure de l’établissement exige une identification nominative.
+Validation enregistrée : le demandeur a approuvé D01 à D10 et la matrice initiale le 22 octobre 2026 ; D11 à D13 sont des amendements postérieurs, dont le dernier a été approuvé le 6 novembre 2026. Ajouter son nom et sa fonction si la procédure de l’établissement exige une identification nominative.
 
 ## 9. Étapes d’implémentation
 

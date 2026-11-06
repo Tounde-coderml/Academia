@@ -6,6 +6,7 @@ use App\Actions\Auth\AuthenticateUser;
 use App\Actions\Auth\LoginAttemptResult;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Notifications\Auth\LoginNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -33,6 +34,7 @@ class AuthenticatedSessionController extends Controller
         }
 
         $request->session()->regenerate();
+        $request->user()->notify(new LoginNotification);
 
         return to_route('dashboard');
     }

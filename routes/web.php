@@ -1,14 +1,18 @@
 <?php
 
-use App\Http\Controllers\Admin\UserController;
+use App\Actions\Auth\SendEmailVerification;
 use App\Http\Controllers\Admin\FiliereController;
 use App\Http\Controllers\Admin\MatiereController;
 use App\Http\Controllers\Admin\NiveauController;
+use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\RegisteredUserController;
+use App\Http\Controllers\EpreuveController;
 use App\Http\Controllers\ReferentielValuesController;
+use Illuminate\Foundation\Auth\EmailVerificationRequest;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -34,10 +38,81 @@ Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])
     ->middleware('auth')
     ->name('logout');
 
-Route::middleware('auth')->get('/referentiels/actifs', ReferentielValuesController::class)
+Route::middleware('auth')->group(function (): void {
+    Route::get('/email/verify', function (Request $request) {
+        return $request->user()->hasVerifiedEmail()
+            ? to_route('dashboard')
+            : Inertia::render('Auth/VerifyEmail', [
+                'email' => $request->user()->email,
+                'status' => $request->session()->get('status'),
+                'emailError' => $request->session()->get('email_error'),
+            ]);
+    })->name('verification.notice');
+
+    Route::get('/email/verify/{id}/{hash}', function (EmailVerificationRequest $request) {
+        $request->fulfill();
+
+        return to_route('dashboard')->with('status', 'Ton adresse e-mail est confirmée.');
+    })->middleware(['signed', 'throttle:6,1'])->name('verification.verify');
+
+    Route::post('/email/verification-notification', function (
+        Request $request,
+        SendEmailVerification $sendEmailVerification,
+    ) {
+        if ($request->user()->hasVerifiedEmail()) {
+            return to_route('dashboard');
+        }
+
+        $emailSent = $sendEmailVerification->handle($request->user());
+
+        if (! $emailSent) {
+            return back()->with(
+                'email_error',
+                'Le courriel de vérification n’a pas pu être envoyé. Vérifie le service de messagerie puis réessaie.',
+            );
+        }
+
+        return back()->with('status', 'Un nouveau lien de confirmation vient de t’être envoyé.');
+    })->middleware('throttle:6,1')->name('verification.send');
+});
+
+Route::middleware(['auth', 'verified'])->get('/referentiels/actifs', ReferentielValuesController::class)
     ->name('referentiels.actifs');
 
-Route::middleware(['auth', 'can:academic_referentials.manage'])
+Route::middleware(['auth', 'verified'])->group(function (): void {
+    Route::get('/mes-epreuves', [EpreuveController::class, 'index'])
+        ->name('epreuves.mine');
+    Route::get('/epreuves/deposer', [EpreuveController::class, 'create'])
+        ->middleware('can:exams.submit')
+        ->name('epreuves.create');
+    Route::post('/epreuves', [EpreuveController::class, 'store'])
+        ->middleware(['can:exams.submit', 'throttle:10,1'])
+        ->name('epreuves.store');
+    Route::get('/admin/revue-epreuves', [EpreuveController::class, 'reviewIndex'])
+        ->middleware('can:exams.review')
+        ->name('epreuves.review');
+    Route::post('/admin/revue-epreuves/{epreuve}/publier', [EpreuveController::class, 'publish'])
+        ->middleware('can:exams.review')
+        ->name('epreuves.publish');
+    Route::post('/admin/revue-epreuves/{epreuve}/refuser', [EpreuveController::class, 'reject'])
+        ->middleware('can:exams.review')
+        ->name('epreuves.reject');
+    Route::get('/epreuves/{epreuve}/fichier', [EpreuveController::class, 'file'])
+        ->middleware('can:exams.view_published')
+        ->name('epreuves.file');
+});
+
+Route::middleware(['auth', 'verified', 'can:exams.manage'])
+    ->prefix('admin/epreuves')
+    ->name('admin.epreuves.')
+    ->group(function (): void {
+        Route::get('/', [EpreuveController::class, 'adminIndex'])->name('index');
+        Route::get('/{epreuve}/modifier', [EpreuveController::class, 'edit'])->name('edit');
+        Route::put('/{epreuve}', [EpreuveController::class, 'update'])->name('update');
+        Route::delete('/{epreuve}', [EpreuveController::class, 'destroy'])->name('destroy');
+    });
+
+Route::middleware(['auth', 'verified', 'can:academic_referentials.manage'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function (): void {
@@ -73,12 +148,15 @@ Route::get('/dashboard', function () {
         'title' => 'Espace Academia',
         'userName' => request()->user()?->name,
         'isAuthenticated' => true,
+        'canSubmitExams' => request()->user()?->can('exams.submit') ?? false,
+        'canReviewExams' => request()->user()?->can('exams.review') ?? false,
+        'canManageExams' => request()->user()?->can('exams.manage') ?? false,
         'canManageUsers' => request()->user()?->can('users.manage') ?? false,
         'canManageReferentials' => request()->user()?->can('academic_referentials.manage') ?? false,
     ]);
-})->middleware(['auth', 'can:dashboard.access'])->name('dashboard');
+})->middleware(['auth', 'verified', 'can:dashboard.access'])->name('dashboard');
 
-Route::middleware(['auth', 'can:users.manage'])
+Route::middleware(['auth', 'verified', 'can:users.manage'])
     ->prefix('admin/utilisateurs')
     ->name('admin.users.')
     ->group(function (): void {

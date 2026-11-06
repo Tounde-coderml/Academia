@@ -2,9 +2,14 @@
 
 namespace Tests\Feature;
 
+use App\Actions\Auth\SendEmailVerification;
 use App\Models\User;
+use App\Notifications\Auth\LoginNotification;
+use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\URL;
 use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
 
@@ -19,28 +24,132 @@ class RegistrationTest extends TestCase
             ->assertInertia(fn (AssertableInertia $page) => $page->component('Auth/RegisterPage'));
     }
 
-    public function test_guest_can_register_a_student_account_and_sign_in_later(): void
+    public function test_registration_authenticates_student_but_requires_email_verification(): void
     {
+        Notification::fake();
+
         $this->post(route('register.store'), [
             'name' => 'Tounde D.',
             'email' => '  TOUNDEDY@GMAIL.COM ',
             'password' => 'correct-horse-battery-staple',
             'password_confirmation' => 'correct-horse-battery-staple',
-        ])->assertRedirectToRoute('login')
-            ->assertSessionHas('status', 'Ton compte a été créé. Tu peux maintenant te connecter.');
+        ])->assertRedirectToRoute('verification.notice');
 
         $user = User::query()->where('email', 'toundedy@gmail.com')->firstOrFail();
 
         $this->assertSame('Tounde D.', $user->name);
         $this->assertTrue(Hash::check('correct-horse-battery-staple', $user->password));
         $this->assertTrue($user->hasRole('etudiant'));
+        $this->assertNull($user->email_verified_at);
+        $this->assertAuthenticatedAs($user);
+        Notification::assertSentTo($user, LoginNotification::class);
+        Notification::assertSentTo($user, VerifyEmail::class);
 
-        $this->post(route('login.store'), [
-            'email' => 'toundedy@gmail.com',
+        $this->get(route('dashboard'))
+            ->assertRedirectToRoute('verification.notice');
+    }
+
+    public function test_registration_reports_when_verification_email_cannot_be_sent(): void
+    {
+        Notification::fake();
+        $this->mock(SendEmailVerification::class)
+            ->shouldReceive('handle')
+            ->once()
+            ->andReturnFalse();
+
+        $this->post(route('register.store'), [
+            'name' => 'Tounde D.',
+            'email' => 'toundedy@example.test',
             'password' => 'correct-horse-battery-staple',
-        ])->assertRedirectToRoute('dashboard');
+            'password_confirmation' => 'correct-horse-battery-staple',
+        ])->assertRedirectToRoute('verification.notice');
+
+        $user = User::query()->where('email', 'toundedy@example.test')->firstOrFail();
 
         $this->assertAuthenticatedAs($user);
+        $this->assertNull($user->email_verified_at);
+        $this->get(route('verification.notice'))
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('Auth/VerifyEmail')
+                ->where(
+                    'emailError',
+                    'Ton compte est créé, mais le courriel de vérification n’a pas pu être envoyé. Vérifie le service de messagerie puis réessaie.',
+                ));
+    }
+
+    public function test_signed_verification_link_confirms_email_and_allows_dashboard_access(): void
+    {
+        $this->seed();
+        $user = User::factory()->unverified()->create();
+        $user->assignRole('etudiant');
+        $verificationUrl = URL::temporarySignedRoute(
+            'verification.verify',
+            now()->addMinutes(30),
+            [
+                'id' => $user->getKey(),
+                'hash' => sha1($user->getEmailForVerification()),
+            ],
+        );
+
+        $this->actingAs($user)
+            ->get($verificationUrl)
+            ->assertRedirectToRoute('dashboard')
+            ->assertSessionHas('status', 'Ton adresse e-mail est confirmée.');
+
+        $this->assertNotNull($user->fresh()->email_verified_at);
+        $this->get(route('dashboard'))->assertOk();
+    }
+
+    public function test_signed_verification_link_with_an_invalid_email_hash_is_rejected(): void
+    {
+        $user = User::factory()->unverified()->create();
+        $verificationUrl = URL::temporarySignedRoute(
+            'verification.verify',
+            now()->addMinutes(30),
+            [
+                'id' => $user->getKey(),
+                'hash' => sha1('different@example.test'),
+            ],
+        );
+
+        $this->actingAs($user)
+            ->get($verificationUrl)
+            ->assertForbidden();
+
+        $this->assertNull($user->fresh()->email_verified_at);
+    }
+
+    public function test_unverified_user_can_request_another_verification_email(): void
+    {
+        Notification::fake();
+        $user = User::factory()->unverified()->create();
+
+        $this->actingAs($user)
+            ->from(route('verification.notice'))
+            ->post(route('verification.send'))
+            ->assertRedirect(route('verification.notice'))
+            ->assertSessionHas('status', 'Un nouveau lien de confirmation vient de t’être envoyé.');
+
+        Notification::assertSentTo($user, VerifyEmail::class);
+    }
+
+    public function test_resend_reports_when_verification_email_cannot_be_sent(): void
+    {
+        $user = User::factory()->unverified()->create();
+        $this->mock(SendEmailVerification::class)
+            ->shouldReceive('handle')
+            ->once()
+            ->with($user)
+            ->andReturnFalse();
+
+        $this->actingAs($user)
+            ->from(route('verification.notice'))
+            ->post(route('verification.send'))
+            ->assertRedirect(route('verification.notice'))
+            ->assertSessionHas(
+                'email_error',
+                'Le courriel de vérification n’a pas pu être envoyé. Vérifie le service de messagerie puis réessaie.',
+            );
     }
 
     public function test_registration_rejects_duplicate_email_short_password_and_mismatched_confirmation(): void

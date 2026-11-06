@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\UserAudit;
 use Database\Seeders\AccessControlSeeder;
 use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Notification;
@@ -80,6 +81,7 @@ class UserManagementTest extends TestCase
         $this->assertTrue($student->hasRole(AssignableUserRole::Student->value));
         $this->assertTrue($student->is_active);
         Notification::assertSentTo($student, ResetPassword::class);
+        Notification::assertSentTo($student, VerifyEmail::class);
         $this->assertDatabaseHas('user_audits', [
             'actor_id' => $administrator->id,
             'user_id' => $student->id,
