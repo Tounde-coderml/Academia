@@ -5,10 +5,10 @@
     "scripts": {
         "build": "vite build",
         "dev": "vite",
-        "lint": "eslint resources/js eslint.config.js vite.config.js",
+        "lint": "eslint resources/js eslint.config.js vite.config.js vitest.config.js",
         "typecheck": "vue-tsc --noEmit",
-        "test:unit": "vitest run",
-        "format:check": "prettier --check resources/js eslint.config.js vite.config.js tsconfig.json"
+        "test:unit": "vitest run --config vitest.config.js",
+        "format:check": "prettier --check resources/js eslint.config.js vite.config.js vitest.config.js tsconfig.json"
     },
     "devDependencies": {
         "@eslint/js": "^10.0.1",
