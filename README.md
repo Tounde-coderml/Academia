@@ -1,59 +1,126 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Academia — Bibliothèque des épreuves ESGC VAK
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Academia est une application web destinée à l’ESGC VAK. Elle centralise les comptes, les référentiels pédagogiques et les épreuves afin de faciliter leur dépôt, leur validation et leur consultation.
 
-## About Laravel
+## Fonctionnalités
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- **M1 — Authentification et accès :** inscription des étudiants, connexion, vérification de l’adresse e-mail, réinitialisation du mot de passe et contrôle des permissions.
+- **M2 — Comptes utilisateurs :** gestion administrative des comptes, rôles, activation, désactivation et restauration.
+- **M3 — Catalogue pédagogique :** gestion des filières, niveaux, matières et associations, avec les semestres S1 et S2.
+- **M4 — Épreuves et fichiers :** dépôt et suivi des épreuves, revue des dépôts étudiants, publication et téléchargement protégé. Les formats acceptés sont PDF, DOC, JPG et PNG, jusqu’à 20 Mo par fichier.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+Les plans détaillés se trouvent dans [`docs/modules`](docs/modules/).
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Technologies
 
-## Learning Laravel
+- PHP 8.3 ou supérieur et Laravel 13
+- MySQL 8.4
+- Inertia, Vue 3 et TypeScript
+- Node.js 22 et npm
+- PHPUnit, Vitest, ESLint, Vue TypeScript Checker, Laravel Pint et Vite
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## Prérequis
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+Installez PHP avec les extensions `dom`, `fileinfo`, `mbstring`, `pdo_mysql` et `xml`, ainsi que Composer, MySQL 8.4+, Node.js 22 et npm.
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+Créez une base de données pour l’application et une base dédiée aux tests :
 
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
-
-```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+```sql
+CREATE DATABASE academia CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE academia_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+Configurez un utilisateur MySQL ayant accès aux deux bases.
 
-## Contributing
+## Installation
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Depuis la racine du dépôt :
 
-## Code of Conduct
+```bash
+composer install
+npm ci
+cp .env.example .env
+php artisan key:generate
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+Dans `.env`, configurez la base de données de développement :
 
-## Security Vulnerabilities
+```dotenv
+APP_NAME=Academia
+APP_URL=http://127.0.0.1:8000
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=academia
+DB_USERNAME=academia
+DB_PASSWORD=votre_mot_de_passe
+```
 
-## License
+Le compte MySQL et son mot de passe doivent correspondre à ceux créés sur votre machine. Puis créez les tables et les données de référence :
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
-# Academia
+```bash
+php artisan migrate --seed
+```
+
+Le seeder ajoute les rôles et permissions, les filières GI/GT/GC, les niveaux L1/L2/L3 et des matières informatiques exemples pour GI. Il est idempotent : il peut être exécuté de nouveau sans créer de doublons.
+
+### Configuration des e-mails
+
+Le fichier `.env.example` utilise `MAIL_MAILER=log`. Avec cette configuration, les e-mails de vérification et de réinitialisation sont écrits dans les logs de l’application et ne sont pas envoyés à une boîte Gmail. Pour recevoir les messages, configurez un service SMTP dans `.env` et vérifiez ses identifiants et paramètres avant d’utiliser l’application.
+
+Ne publiez jamais les secrets SMTP ou le fichier `.env` dans le dépôt.
+
+## Lancement en développement
+
+Démarrez les processus nécessaires avec :
+
+```bash
+composer run dev
+```
+
+Cette commande lance le serveur Laravel configuré pour accepter les dépôts de fichiers de 20 Mo, Vite, la file d’attente et les logs. L’application est accessible à l’adresse configurée dans `APP_URL` (par défaut `http://127.0.0.1:8000`).
+
+Pour créer le premier compte administrateur, utilisez la commande interactive :
+
+```bash
+php artisan users:create-administrator
+```
+
+## Tests et vérifications
+
+Les tests PHP utilisent la base dédiée `academia_test`. Le fichier `phpunit.xml` sélectionne cette base ; les paramètres de connexion MySQL proviennent de l’environnement. Ne configurez jamais les tests pour utiliser une base contenant des données importantes.
+
+```bash
+php artisan test --compact
+npm run test:unit
+npm run typecheck
+npm run lint
+vendor/bin/pint --test
+npm run build
+```
+
+Une vérification de formatage Prettier est également disponible :
+
+```bash
+npm run format:check
+```
+
+Le workflow [GitHub Actions](.github/workflows/ci.yml) s’exécute à chaque push et pull request. Il lance Pint, les tests PHP et frontend, le contrôle des types, ESLint et le build avec un service MySQL temporaire.
+
+## Structure du dépôt
+
+```text
+app/                     Code Laravel (contrôleurs, modèles, règles métier)
+database/migrations/     Évolution du schéma de base de données
+database/seeders/        Rôles, permissions et référentiels initiaux
+resources/js/            Interface Vue 3 / TypeScript
+routes/web.php           Routes web et protections d’accès
+tests/                   Tests PHPUnit et Vitest
+docs/modules/            Plans fonctionnels et techniques M1 à M4
+.github/workflows/       Automatisations GitHub Actions
+```
+
+## Sécurité
+
+Les clés, mots de passe, paramètres SMTP et autres secrets doivent rester dans l’environnement et ne doivent pas être commités. Les fichiers d’épreuves sont stockés sur le disque privé de Laravel et servis par une route protégée.
