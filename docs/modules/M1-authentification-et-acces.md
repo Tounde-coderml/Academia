@@ -1,7 +1,7 @@
 # Plan d’implémentation — M1 Authentification et accès
 
-> Version 1.12 — 6 novembre 2026
-> Statut : M1 validé techniquement ; matrice de dépôt et de revue amendée le 6 novembre 2026 par décision M4.
+> Version 1.13 — 8 novembre 2026
+> Statut : la vérification obligatoire de l’adresse e-mail est confirmée par le demandeur le 8 novembre 2026. Les suites automatisées M1 et du projet passent; la configuration des environnements déployés reste à vérifier avant mise en production.
 > Projet : Academia — Module 1 de l’architecture de la Bibliothèque des Épreuves ESGC VAK.
 
 ## 1. Identification
@@ -12,8 +12,8 @@
 | Auteur | Équipe Academia, à confirmer |
 | Validateur métier | Demandeur, approbation reçue le 22 octobre 2026 ; nom et fonction à compléter si requis |
 | Date | 22 octobre 2026 |
-| Version | 1.12 |
-| Statut | Étapes 0 à 4 validées techniquement ; matrice d’accès amendée le 6 novembre 2026 pour M4 |
+| Version | 1.13 |
+| Statut | Étapes 0 à 4 validées techniquement ; décision de vérification e-mail confirmée le 8 novembre 2026 ; matrice d’accès amendée le 6 novembre 2026 pour M4 |
 
 Ce plan reprend le module M1 de l’architecture logicielle et la trame du guide « Avant de coder un module ». Les décisions D01 à D10 et la matrice d’accès ont été approuvées par le demandeur le 22 octobre 2026 ; les validations d’exécution sont consignées séparément pour chaque étape.
 
@@ -52,7 +52,7 @@ Objectifs :
 
 - Création, modification, désactivation et suppression des comptes : responsabilité du M2 « Comptes utilisateurs ».
 - Affectation et administration des rôles et permissions : à coordonner avec M2 et l’administration ; M1 applique les droits, mais ne définit pas seul la politique métier.
-- Vérification obligatoire d’adresse e-mail, authentification multifacteur, connexion sociale et API de jetons : non demandées à ce stade. L’inscription publique des étudiants est réintégrée par la décision D11.
+- Authentification multifacteur, connexion sociale et API de jetons : non demandées à ce stade. L’inscription publique des étudiants est réintégrée par la décision D11. La vérification obligatoire de l’adresse e-mail est implémentée aujourd’hui, mais sa cohérence avec D03 (« ne pas l’exiger ») reste à confirmer par une décision métier.
 - Autorisations propres aux épreuves et aux fichiers : chaque module concerné devra fournir ses règles et policies, en s’appuyant sur le socle M1.
 
 ## 4. Existant, stack et contraintes
@@ -138,7 +138,12 @@ Les routes ci-dessous existent dans `routes/web.php`. Elles utilisent les sessio
 | --- | --- | --- |
 | `GET /login` | Visiteur | Page de connexion. |
 | `POST /login` | Visiteur | Authentification, erreur générique ou refus par limitation. |
+| `GET /register` | Visiteur | Formulaire d’inscription publique étudiant, selon D11. |
+| `POST /register` | Visiteur | Création d’un compte étudiant, connexion puis demande de vérification; limite de 5 requêtes par minute. |
 | `POST /logout` | Authentifié | Invalidation de la session puis retour à la connexion. |
+| `GET /email/verify` | Authentifié non vérifié | Écran de vérification et possibilité de renvoyer le lien. |
+| `GET /email/verify/{id}/{hash}` | Authentifié | Vérification via URL signée temporaire et limitée en fréquence. |
+| `POST /email/verification-notification` | Authentifié non vérifié | Renvoi du lien avec limitation côté serveur. |
 | `GET /forgot-password` | Visiteur | Formulaire de demande de lien. |
 | `POST /forgot-password` | Visiteur | Confirmation générique, avec limitation côté serveur. |
 | `GET /reset-password/{token}` | Visiteur | Formulaire de nouveau mot de passe. |
@@ -169,7 +174,7 @@ Les propositions ci-dessous rendent le plan directement exploitable. Elles s’a
 | --- | --- | --- | --- | --- |
 | D01 | Conserver les rôles Étudiant, Responsable de classe, Administration et Administrateur ; appliquer la matrice proposée en section 5. | Reprend les acteurs de l’architecture et sépare dépôt, validation et administration des comptes. | Responsable métier ESGC VAK | Approuvé par le demandeur, 22 octobre 2026 |
 | D02 | Aucun compte ne peut s’inscrire publiquement. L’établissement crée les comptes ; seul l’Administrateur peut attribuer ou retirer les rôles, dans M2. | Le cahier d’architecture ne demande pas d’inscription ; réduit l’exposition aux comptes non autorisés. | Responsable projet / établissement | Approuvé par le demandeur, 22 octobre 2026 |
-| D03 | Ne pas exiger la vérification d’e-mail pour le MVP, faute de besoin confirmé. Si M2 introduit un état inactif, le compte inactif est refusé à la connexion ; ne pas ajouter le champ dans M1. | La migration actuelle ne contient pas de statut actif et le mailer local est `log`. Toute activation requiert une décision et le service e-mail de M2. | Responsable métier | Approuvé par le demandeur, 22 octobre 2026 |
+| D03 | Mise à jour : la vérification d’e-mail est obligatoire avant l’accès aux routes protégées. Un nouvel inscrit est connecté mais limité à l’écran de vérification jusqu’à confirmation; un lien signé est requis. | La décision initiale « ne pas exiger » du 22 octobre est remplacée. Le comportement actuel (`MustVerifyEmail`, middleware `verified`) est conservé. | Demandeur | Confirmé, 8 novembre 2026 |
 | D04 | Conserver provisoirement les limites implémentées : connexion 5 échecs par identité+IP sur 60 s et 30 par IP sur 60 s ; demande de reset 3 par identité+IP et 20 par IP sur 900 s ; soumission du reset 5 par identité+IP sur 900 s et 30 par IP sur 60 s. Message public générique dans tous les cas. | Reprend `AuthenticateUser`, `RequestPasswordReset` et `ResetUserPassword` ; changer ces seuils exige des tests et une mesure des faux positifs. | Responsable sécurité / projet | Approuvé par le demandeur, 22 octobre 2026 |
 | D05 | Garder le minimum actuel de 15 caractères pour un nouveau mot de passe ; ne pas ajouter de règles de composition arbitraires. Conserver la limite technique calculée selon le hasher configuré. | Aligné sur `NewPasswordRequest` ; le mot de passe est hashé par Laravel. | Responsable sécurité / projet | Approuvé par le demandeur, 22 octobre 2026 |
 | D06 | Garder le jeton de réinitialisation valable 60 min et l’intervalle minimal de création à 60 s ; après succès, ne pas connecter automatiquement l’utilisateur et invalider les sessions précédentes. | Valeurs effectives du broker vérifiées ; le middleware `AuthenticateSession` et le changement du hash invalident les sessions existantes. | Responsable sécurité / établissement | Approuvé par le demandeur, 22 octobre 2026 |
@@ -182,6 +187,8 @@ Les propositions ci-dessous rendent le plan directement exploitable. Elles s’a
 | D13 | Réviser la matrice d’accès : autoriser les étudiants à déposer une épreuve, toujours en attente jusqu’à validation ; autoriser les responsables de classe à valider ou refuser tous les dépôts étudiants. La revue, la confirmation des doublons et les états relèvent de M4. | Décision de cadrage M4 ; remplace les anciennes cases étudiant « non » et responsable « non » pour dépôt/revue. | Demandeur | Approuvé, 6 novembre 2026 |
 
 Validation enregistrée : le demandeur a approuvé D01 à D10 et la matrice initiale le 22 octobre 2026 ; D11 à D13 sont des amendements postérieurs, dont le dernier a été approuvé le 6 novembre 2026. Ajouter son nom et sa fonction si la procédure de l’établissement exige une identification nominative.
+
+La règle de vérification est maintenant cohérente : l’inscription publique reste ouverte avec le rôle `etudiant` (D11), et la confirmation de l’adresse est requise avant l’accès aux routes protégées (D03, mise à jour le 8 novembre).
 
 ## 9. Étapes d’implémentation
 
@@ -485,6 +492,7 @@ Les commandes front-end disponibles dans `package.json` incluent `npm run test:u
 | Date | Décision | Responsable | Impact / étape |
 | --- | --- | --- | --- |
 | 22 octobre 2026 | Cadrage M1, matrice de moindre privilège et décisions D01 à D10 approuvés par le demandeur. | Demandeur, nom/fonction à compléter si requis | Étape 0 |
+| 8 novembre 2026 | Confirmation de la vérification obligatoire d’adresse e-mail; remplace le choix initial D03 « ne pas l’exiger ». | Demandeur | M1, inscription et accès protégé |
 
 ### Bilan commun à renseigner après chaque étape
 
@@ -494,5 +502,16 @@ Les commandes front-end disponibles dans `package.json` incluent `npm run test:u
 - Preuves : test, rapport ou parcours réellement observé.
 - Limites : test non exécuté, dépendance manquante ou anomalie.
 - Décision : acceptée ou corrections demandées, validateur et date.
+
+### Revalidation technique du 8 novembre 2026
+
+- Tests M1 ciblés — connexion, inscription, vérification d’e-mail, récupération du mot de passe, permissions et notification : **43 tests réussis, 483 assertions**. Deux tests de route ont été ajoutés pour la limite d’inscription et l’expiration de signature; des tests couvrent aussi le renvoi du lien de vérification et le refus après vérification.
+- Suite PHP complète : **100 tests réussis, 954 assertions**.
+- Interface : **15 tests Vitest réussis**, typecheck, ESLint, Prettier et build réussis.
+- PHP : Pint, routes d’authentification, middleware du dashboard et événements de notification vérifiés.
+- Configuration observée dans cet environnement local : `APP_ENV=local`, `APP_DEBUG=true`, mailer `smtp`; session database, 120 minutes, cookie `HttpOnly`, `SameSite=Lax`, `Secure=false` en local. Cela ne valide pas la configuration de production; `APP_DEBUG` doit être désactivé et le cookie sécurisé en HTTPS en production.
+- Le 8 novembre 2026, un e-mail de test M1 a été accepté par le transport SMTP vers `toundedy@gmail.com`; le demandeur en a confirmé la réception. Aucun secret SMTP n’a été affiché ou modifié.
+- Le contrôle global de formatage passe après formatage de `VerifyEmail.vue`.
+- **Statut : tests automatisés et décision métier réussis/confirmés.** La configuration réelle des environnements déployés doit néanmoins être vérifiée avant production; `APP_DEBUG=true` et `SESSION_SECURE_COOKIE=false` observés ici ne sont acceptables que pour l’environnement local.
 
 Une case cochée ou un code présent ne constitue pas à lui seul une preuve de validation.

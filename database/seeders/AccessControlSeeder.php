@@ -24,7 +24,6 @@ class AccessControlSeeder extends Seeder
             ],
             'responsable_classe' => [
                 'dashboard.access',
-                'dashboard.view_class_stats',
                 'exams.review',
                 'exams.submit',
                 'exams.view_published',

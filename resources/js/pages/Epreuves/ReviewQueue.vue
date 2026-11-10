@@ -77,11 +77,6 @@ function reject(epreuve: Epreuve): void {
                 >
                     Mes épreuves
                 </Link>
-                <p
-                    class="mt-6 text-xs font-bold uppercase tracking-[0.18em] text-indigo-800"
-                >
-                    Module 04 · Revue
-                </p>
                 <h1
                     class="mt-2 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl"
                 >

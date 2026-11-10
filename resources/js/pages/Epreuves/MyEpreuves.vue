@@ -64,11 +64,6 @@ function statusClass(status: string): string {
                     >
                         Espace Academia
                     </Link>
-                    <p
-                        class="mt-6 text-xs font-bold uppercase tracking-[0.18em] text-indigo-800"
-                    >
-                        Espace étudiant · Module 04
-                    </p>
                     <h1
                         class="mt-2 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl"
                     >

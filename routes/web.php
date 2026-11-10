@@ -9,7 +9,11 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\RegisteredUserController;
+use App\Http\Controllers\CatalogueController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EpreuveController;
+use App\Http\Controllers\EpreuveFavoriteController;
+use App\Http\Controllers\PersonalEpreuvesController;
 use App\Http\Controllers\ReferentielValuesController;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Http\Request;
@@ -80,6 +84,34 @@ Route::middleware(['auth', 'verified'])->get('/referentiels/actifs', Referentiel
     ->name('referentiels.actifs');
 
 Route::middleware(['auth', 'verified'])->group(function (): void {
+    Route::get('/epreuves', [CatalogueController::class, 'index'])
+        ->middleware('can:exams.view_published')
+        ->name('catalogue.index');
+    Route::get('/epreuves/{epreuve}', [CatalogueController::class, 'show'])
+        ->middleware('can:exams.view_published')
+        ->whereNumber('epreuve')
+        ->name('catalogue.show');
+    Route::put('/epreuves/{epreuve}/favori', [EpreuveFavoriteController::class, 'store'])
+        ->middleware('can:exams.view_published')
+        ->whereNumber('epreuve')
+        ->name('catalogue.favorites.store');
+    Route::delete('/epreuves/{epreuve}/favori', [EpreuveFavoriteController::class, 'destroy'])
+        ->middleware('can:exams.view_published')
+        ->whereNumber('epreuve')
+        ->name('catalogue.favorites.destroy');
+    Route::get('/mes-favoris', [PersonalEpreuvesController::class, 'favorites'])
+        ->middleware('can:exams.view_published')
+        ->name('epreuves.favorites');
+    Route::get('/historique', [PersonalEpreuvesController::class, 'history'])
+        ->middleware('can:exams.view_published')
+        ->name('epreuves.history');
+    Route::get('/filieres/{filiere}/epreuves', [CatalogueController::class, 'byFiliere'])
+        ->middleware('can:exams.view_published')
+        ->name('catalogue.filieres.show');
+    Route::get('/matieres/{matiere}/epreuves', [CatalogueController::class, 'byMatiere'])
+        ->middleware('can:exams.view_published')
+        ->name('catalogue.matieres.show');
+
     Route::get('/mes-epreuves', [EpreuveController::class, 'index'])
         ->name('epreuves.mine');
     Route::get('/epreuves/deposer', [EpreuveController::class, 'create'])
@@ -143,18 +175,9 @@ Route::middleware(['auth', 'verified', 'can:academic_referentials.manage'])
         )->name('matieres.associations.destroy');
     });
 
-Route::get('/dashboard', function () {
-    return Inertia::render('AcademiaWelcome', [
-        'title' => 'Espace Academia',
-        'userName' => request()->user()?->name,
-        'isAuthenticated' => true,
-        'canSubmitExams' => request()->user()?->can('exams.submit') ?? false,
-        'canReviewExams' => request()->user()?->can('exams.review') ?? false,
-        'canManageExams' => request()->user()?->can('exams.manage') ?? false,
-        'canManageUsers' => request()->user()?->can('users.manage') ?? false,
-        'canManageReferentials' => request()->user()?->can('academic_referentials.manage') ?? false,
-    ]);
-})->middleware(['auth', 'verified', 'can:dashboard.access'])->name('dashboard');
+Route::get('/dashboard', DashboardController::class)
+    ->middleware(['auth', 'verified', 'can:dashboard.access'])
+    ->name('dashboard');
 
 Route::middleware(['auth', 'verified', 'can:users.manage'])
     ->prefix('admin/utilisateurs')

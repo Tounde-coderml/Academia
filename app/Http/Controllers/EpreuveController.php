@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\EpreuveTelechargee;
 use App\Http\Requests\StoreEpreuveRequest;
 use App\Http\Requests\UpdateEpreuveRequest;
 use App\Models\Epreuve;
@@ -296,13 +297,25 @@ class EpreuveController extends Controller
         );
         abort_unless(Storage::disk('local')->exists($epreuve->file_path), 404);
         $downloadName = preg_replace('/[^A-Za-z0-9._-]/', '_', basename($epreuve->original_filename)) ?: 'epreuve';
+        $isPreview = $request->boolean('preview');
+        $previewableMimeTypes = ['application/pdf', 'image/jpeg', 'image/png'];
 
-        return response()->file(Storage::disk('local')->path($epreuve->file_path), [
+        abort_if($isPreview && ! in_array($epreuve->mime_type, $previewableMimeTypes, true), 404);
+
+        if (! $isPreview && $epreuve->status === 'published') {
+            $userId = (int) $request->user()->id;
+            $epreuveId = $epreuve->id;
+            defer(fn () => EpreuveTelechargee::dispatch($userId, $epreuveId));
+        }
+
+        $response = response()->file(Storage::disk('local')->path($epreuve->file_path), [
             'Content-Type' => $epreuve->mime_type,
-            'Content-Disposition' => 'attachment; filename="'.$downloadName.'"',
+            'Content-Disposition' => ($isPreview ? 'inline' : 'attachment').'; filename="'.$downloadName.'"',
             'X-Content-Type-Options' => 'nosniff',
-            'Cache-Control' => 'private, no-store',
+            'Cache-Control' => 'no-store',
         ]);
+
+        return $response->setPrivate();
     }
 
     /** @return list<string> */

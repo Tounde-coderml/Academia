@@ -46,7 +46,11 @@ function resend(): void {
             {{ form.processing ? "Envoi en cours…" : "Renvoyer le lien" }}
         </button>
 
-        <p v-if="form.errors.email" role="alert" class="mt-3 text-sm text-red-800">
+        <p
+            v-if="form.errors.email"
+            role="alert"
+            class="mt-3 text-sm text-red-800"
+        >
             {{ form.errors.email }}
         </p>
 

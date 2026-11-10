@@ -2,9 +2,11 @@ import { mount, flushPromises } from "@vue/test-utils";
 import { reactive } from "vue";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import AuthLayout from "../../components/AuthLayout.vue";
+import ForgotPassword from "./ForgotPassword.vue";
 import LoginPage from "./LoginPage.vue";
 import RegisterPage from "./RegisterPage.vue";
 import ResetPassword from "./ResetPassword.vue";
+import VerifyEmail from "./VerifyEmail.vue";
 
 const mocks = vi.hoisted(() => ({
     useForm: vi.fn(),
@@ -34,10 +36,12 @@ describe("authentication forms", () => {
             password_confirmation: "",
             errors: {} as Record<string, string>,
             processing: false,
-            post: vi.fn((url: string, options: PostOptions) => {
-                expect(url).toMatch(/^\/(login|register|reset-password)$/);
+            post: vi.fn((url: string, options?: PostOptions) => {
+                expect(url).toMatch(
+                    /^\/(login|register|forgot-password|reset-password|email\/verification-notification)$/,
+                );
                 form.errors.email = "Échec simulé côté serveur.";
-                options.onError?.();
+                options?.onError?.();
             }),
         });
 
@@ -102,6 +106,62 @@ describe("authentication forms", () => {
         expect(wrapper.get<HTMLInputElement>("#password").element.value).toBe(
             "",
         );
+    });
+
+    it("submits a password reset request and displays validation errors", async () => {
+        const wrapper = mount(ForgotPassword, {
+            global: {
+                stubs: {
+                    AuthLayout: {
+                        props: ["title", "description"],
+                        template: "<main><slot /></main>",
+                    },
+                },
+            },
+        });
+
+        await wrapper.get("#email").setValue("student@example.test");
+        await wrapper.get("form").trigger("submit");
+        await flushPromises();
+
+        expect(wrapper.get('[role="alert"]').text()).toContain(
+            "Échec simulé côté serveur.",
+        );
+        expect(
+            mocks.useForm.mock.results.at(-1)?.value.post,
+        ).toHaveBeenCalledWith(
+            "/forgot-password",
+            expect.objectContaining({ onError: expect.any(Function) }),
+        );
+    });
+
+    it("shows verification status and supports resending the email", async () => {
+        mocks.usePage.mockReturnValue({
+            props: { flash: { status: "Lien envoyé." } },
+        });
+
+        const wrapper = mount(VerifyEmail, {
+            props: {
+                email: "student@example.test",
+                status: "Lien envoyé.",
+                emailError: undefined,
+            },
+            global: {
+                stubs: {
+                    AuthLayout: {
+                        props: ["title", "description"],
+                        template: "<main><slot /></main>",
+                    },
+                },
+            },
+        });
+
+        expect(wrapper.get('[role="status"]').text()).toBe("Lien envoyé.");
+        await wrapper.get("button").trigger("click");
+
+        expect(
+            mocks.useForm.mock.results.at(-1)?.value.post,
+        ).toHaveBeenCalledWith("/email/verification-notification");
     });
 
     it("toggles login password visibility without changing the password", async () => {

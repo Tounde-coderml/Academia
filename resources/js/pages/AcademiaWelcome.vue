@@ -1,7 +1,22 @@
 <script setup lang="ts">
+import { computed } from "vue";
 import { Head, Link, useForm } from "@inertiajs/vue3";
 
-defineProps<{
+type SchoolStatistics = {
+    activeUsers: number;
+    exams: {
+        total: number;
+        pending: number;
+        published: number;
+        rejected: number;
+    };
+    activity: {
+        consultations: number;
+        downloads: number;
+    };
+};
+
+const props = defineProps<{
     title?: string;
     userName?: string | null;
     isAuthenticated?: boolean;
@@ -10,9 +25,36 @@ defineProps<{
     canManageExams?: boolean;
     canManageUsers?: boolean;
     canManageReferentials?: boolean;
+    canViewSchoolStats?: boolean;
+    statistics?: SchoolStatistics | null;
 }>();
 
 const logoutForm = useForm({});
+const numberFormatter = new Intl.NumberFormat("fr-FR");
+const statisticCards = computed(() => {
+    if (!props.statistics) {
+        return [];
+    }
+
+    return [
+        { label: "Comptes actifs", value: props.statistics.activeUsers },
+        { label: "Épreuves déposées", value: props.statistics.exams.total },
+        {
+            label: "Épreuves en attente",
+            value: props.statistics.exams.pending,
+        },
+        { label: "Épreuves publiées", value: props.statistics.exams.published },
+        { label: "Épreuves refusées", value: props.statistics.exams.rejected },
+        {
+            label: "Consultations enregistrées",
+            value: props.statistics.activity.consultations,
+        },
+        {
+            label: "Téléchargements enregistrés",
+            value: props.statistics.activity.downloads,
+        },
+    ];
+});
 
 function logout(): void {
     logoutForm.post("/logout");
@@ -135,6 +177,28 @@ function logout(): void {
                         >
                             <Link
                                 v-if="isAuthenticated"
+                                href="/epreuves"
+                                class="group flex min-h-28 items-start justify-between gap-4 rounded-2xl border border-indigo-300 bg-indigo-50/70 p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-indigo-600 hover:bg-indigo-100 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-700"
+                            >
+                                <span>
+                                    <span
+                                        class="block text-base font-bold text-indigo-950"
+                                        >Consulter le catalogue</span
+                                    >
+                                    <span
+                                        class="mt-1.5 block text-sm leading-5 text-indigo-900/75"
+                                        >Rechercher les épreuves publiées.</span
+                                    >
+                                </span>
+                                <span
+                                    class="text-lg font-semibold text-indigo-800"
+                                    aria-hidden="true"
+                                    >→</span
+                                >
+                            </Link>
+
+                            <Link
+                                v-if="isAuthenticated"
                                 href="/mes-epreuves"
                                 class="group flex min-h-28 items-start justify-between gap-4 rounded-2xl border border-slate-300 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-indigo-500 hover:bg-indigo-50/50 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-700"
                             >
@@ -147,6 +211,29 @@ function logout(): void {
                                         class="mt-1.5 block text-sm leading-5 text-slate-600"
                                         >Consulter mes dépôts et leur
                                         statut.</span
+                                    >
+                                </span>
+                                <span
+                                    class="text-lg font-semibold text-indigo-800"
+                                    aria-hidden="true"
+                                    >→</span
+                                >
+                            </Link>
+
+                            <Link
+                                v-if="isAuthenticated"
+                                href="/mes-favoris"
+                                class="group flex min-h-28 items-start justify-between gap-4 rounded-2xl border border-slate-300 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-indigo-500 hover:bg-indigo-50/50 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-700"
+                            >
+                                <span>
+                                    <span
+                                        class="block text-base font-bold text-slate-950"
+                                        >Mes favoris et mon historique</span
+                                    >
+                                    <span
+                                        class="mt-1.5 block text-sm leading-5 text-slate-600"
+                                        >Retrouver les épreuves enregistrées et
+                                        consultées.</span
                                     >
                                 </span>
                                 <span
@@ -271,6 +358,45 @@ function logout(): void {
                         </nav>
                     </div>
                 </div>
+            </section>
+
+            <section
+                v-if="canViewSchoolStats && statistics"
+                id="school-statistics"
+                class="mt-6 rounded-3xl border border-slate-300 bg-white p-6 shadow-sm sm:p-8"
+                aria-labelledby="school-statistics-title"
+            >
+                <div class="mb-6">
+                    <p
+                        class="text-sm font-semibold uppercase tracking-[0.14em] text-indigo-800"
+                    >
+                        Synthèse de la plateforme
+                    </p>
+                    <h2
+                        id="school-statistics-title"
+                        class="mt-2 text-2xl font-bold tracking-tight text-slate-950"
+                    >
+                        Indicateurs globaux
+                    </h2>
+                    <p class="mt-2 text-sm leading-6 text-slate-600">
+                        Totaux enregistrés pour l’ensemble de la plateforme.
+                    </p>
+                </div>
+
+                <dl class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <div
+                        v-for="card in statisticCards"
+                        :key="card.label"
+                        class="rounded-2xl border border-slate-300 bg-slate-50 p-5"
+                    >
+                        <dt class="text-sm font-medium text-slate-600">
+                            {{ card.label }}
+                        </dt>
+                        <dd class="mt-2 text-3xl font-bold text-indigo-950">
+                            {{ numberFormatter.format(card.value) }}
+                        </dd>
+                    </div>
+                </dl>
             </section>
 
             <footer

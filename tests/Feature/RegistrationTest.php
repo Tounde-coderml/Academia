@@ -24,6 +24,21 @@ class RegistrationTest extends TestCase
             ->assertInertia(fn (AssertableInertia $page) => $page->component('Auth/RegisterPage'));
     }
 
+    public function test_registration_endpoint_is_rate_limited_per_ip(): void
+    {
+        foreach (range(1, 5) as $attempt) {
+            $this->from(route('register'))
+                ->post(route('register.store'), [])
+                ->assertRedirect(route('register'))
+                ->assertSessionHasErrors(['name', 'email', 'password']);
+        }
+
+        $this->post(route('register.store'), [])
+            ->assertTooManyRequests();
+
+        $this->assertDatabaseCount('users', 0);
+    }
+
     public function test_registration_authenticates_student_but_requires_email_verification(): void
     {
         Notification::fake();
@@ -119,6 +134,25 @@ class RegistrationTest extends TestCase
         $this->assertNull($user->fresh()->email_verified_at);
     }
 
+    public function test_expired_signed_verification_link_is_rejected(): void
+    {
+        $user = User::factory()->unverified()->create();
+        $verificationUrl = URL::temporarySignedRoute(
+            'verification.verify',
+            now()->subMinute(),
+            [
+                'id' => $user->getKey(),
+                'hash' => sha1($user->getEmailForVerification()),
+            ],
+        );
+
+        $this->actingAs($user)
+            ->get($verificationUrl)
+            ->assertForbidden();
+
+        $this->assertNull($user->fresh()->email_verified_at);
+    }
+
     public function test_unverified_user_can_request_another_verification_email(): void
     {
         Notification::fake();
@@ -131,6 +165,37 @@ class RegistrationTest extends TestCase
             ->assertSessionHas('status', 'Un nouveau lien de confirmation vient de t’être envoyé.');
 
         Notification::assertSentTo($user, VerifyEmail::class);
+    }
+
+    public function test_verified_user_cannot_trigger_another_verification_email(): void
+    {
+        Notification::fake();
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->post(route('verification.send'))
+            ->assertRedirectToRoute('dashboard');
+
+        Notification::assertNothingSent();
+    }
+
+    public function test_verification_email_resend_is_rate_limited_per_ip(): void
+    {
+        Notification::fake();
+        $user = User::factory()->unverified()->create();
+
+        foreach (range(1, 6) as $attempt) {
+            $this->actingAs($user)
+                ->from(route('verification.notice'))
+                ->post(route('verification.send'))
+                ->assertRedirect(route('verification.notice'));
+        }
+
+        $this->actingAs($user)
+            ->post(route('verification.send'))
+            ->assertTooManyRequests();
+
+        Notification::assertSentToTimes($user, VerifyEmail::class, 6);
     }
 
     public function test_resend_reports_when_verification_email_cannot_be_sent(): void
