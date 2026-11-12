@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Auth;
 
 use App\Actions\Auth\AuthenticateUser;
 use App\Actions\Auth\LoginAttemptResult;
+use App\Actions\Auth\SendLoginNotification;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
-use App\Notifications\Auth\LoginNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -19,8 +19,11 @@ class AuthenticatedSessionController extends Controller
         return Inertia::render('Auth/LoginPage');
     }
 
-    public function store(LoginRequest $request, AuthenticateUser $authenticate): RedirectResponse
-    {
+    public function store(
+        LoginRequest $request,
+        AuthenticateUser $authenticate,
+        SendLoginNotification $sendLoginNotification,
+    ): RedirectResponse {
         $result = $authenticate->handle(
             $request->validated('email'),
             $request->validated('password'),
@@ -34,7 +37,7 @@ class AuthenticatedSessionController extends Controller
         }
 
         $request->session()->regenerate();
-        $request->user()->notify(new LoginNotification);
+        $sendLoginNotification->handle($request->user());
 
         return to_route('dashboard');
     }
