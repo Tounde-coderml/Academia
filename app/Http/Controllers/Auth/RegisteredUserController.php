@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Auth;
 
 use App\Actions\Auth\RegisterStudent;
 use App\Actions\Auth\SendEmailVerification;
+use App\Actions\Auth\SendLoginNotification;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\RegisterUserRequest;
-use App\Notifications\Auth\LoginNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -22,12 +22,13 @@ class RegisteredUserController extends Controller
     public function store(
         RegisterUserRequest $request,
         RegisterStudent $registerStudent,
+        SendLoginNotification $sendLoginNotification,
         SendEmailVerification $sendEmailVerification,
     ): RedirectResponse {
         $user = $registerStudent->handle($request->safe()->only(['name', 'email', 'password']));
         Auth::login($user);
         $request->session()->regenerate();
-        $user->notify(new LoginNotification);
+        $sendLoginNotification->handle($user);
         $emailSent = $sendEmailVerification->handle($user);
 
         if (! $emailSent) {
