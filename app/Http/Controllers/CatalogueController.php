@@ -11,11 +11,44 @@ use App\Models\Matiere;
 use App\Models\Niveau;
 use App\Semestre;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class CatalogueController extends Controller
 {
+    private const SEARCH_ACCENT_REPLACEMENTS = [
+        'à' => 'a',
+        'á' => 'a',
+        'â' => 'a',
+        'ã' => 'a',
+        'ä' => 'a',
+        'å' => 'a',
+        'æ' => 'ae',
+        'ç' => 'c',
+        'è' => 'e',
+        'é' => 'e',
+        'ê' => 'e',
+        'ë' => 'e',
+        'ì' => 'i',
+        'í' => 'i',
+        'î' => 'i',
+        'ï' => 'i',
+        'ñ' => 'n',
+        'ò' => 'o',
+        'ó' => 'o',
+        'ô' => 'o',
+        'õ' => 'o',
+        'ö' => 'o',
+        'œ' => 'oe',
+        'ù' => 'u',
+        'ú' => 'u',
+        'û' => 'u',
+        'ü' => 'u',
+        'ý' => 'y',
+        'ÿ' => 'y',
+    ];
+
     public function index(CatalogueSearchRequest $request): Response
     {
         return $this->catalogue($request);
@@ -92,12 +125,12 @@ class CatalogueController extends Controller
             ->with(['filiere:id,code,name', 'niveau:id,code,name', 'matiere:id,code,name']);
 
         if (($keyword = $filters['q'] ?? null) !== null && $keyword !== '') {
-            $searchTerm = addcslashes($keyword, '\\%_');
+            $searchTerm = addcslashes(Str::ascii(Str::lower($keyword)), '\\%_');
 
             $query->where(function (Builder $query) use ($searchTerm): void {
-                $query->where('title', 'like', '%'.$searchTerm.'%')
-                    ->orWhereHas('matiere', fn (Builder $related): Builder => $related->where('name', 'like', '%'.$searchTerm.'%'))
-                    ->orWhereHas('filiere', fn (Builder $related): Builder => $related->where('name', 'like', '%'.$searchTerm.'%'));
+                $this->whereSearchMatches($query, 'title', $searchTerm)
+                    ->orWhereHas('matiere', fn (Builder $related): Builder => $this->whereSearchMatches($related, 'name', $searchTerm))
+                    ->orWhereHas('filiere', fn (Builder $related): Builder => $this->whereSearchMatches($related, 'name', $searchTerm));
             });
         }
 
@@ -175,5 +208,16 @@ class CatalogueController extends Controller
             ],
             'resultCount' => $epreuves->total(),
         ]);
+    }
+
+    private function whereSearchMatches(Builder $query, string $column, string $searchTerm): Builder
+    {
+        $expression = 'LOWER('.$query->getQuery()->getGrammar()->wrap($column).')';
+
+        foreach (self::SEARCH_ACCENT_REPLACEMENTS as $accent => $replacement) {
+            $expression = "REPLACE({$expression}, '{$accent}', '{$replacement}')";
+        }
+
+        return $query->whereRaw($expression.' LIKE ?', ['%'.$searchTerm.'%']);
     }
 }
