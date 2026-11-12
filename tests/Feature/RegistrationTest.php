@@ -64,6 +64,21 @@ class RegistrationTest extends TestCase
             ->assertRedirectToRoute('verification.notice');
     }
 
+    public function test_verification_email_uses_a_labeled_link_without_showing_the_url(): void
+    {
+        $user = User::factory()->unverified()->create();
+        $mail = (new VerifyEmail)->toMail($user);
+        $url = $mail->viewData['url'];
+        $html = (string) $mail->render();
+        $text = view($mail->view['text'], $mail->data())->render();
+
+        $this->assertStringContainsString('href="'.e($url).'"', $html);
+        $this->assertStringContainsString('Confirmer mon adresse e-mail', $html);
+        $this->assertStringNotContainsString($url, html_entity_decode(strip_tags($html)));
+        $this->assertStringContainsString('Confirmer mon adresse e-mail', $text);
+        $this->assertStringNotContainsString($url, $text);
+    }
+
     public function test_registration_reports_when_verification_email_cannot_be_sent(): void
     {
         Notification::fake();

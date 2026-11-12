@@ -209,6 +209,21 @@ class AuthenticationTest extends TestCase
         Notification::assertSentTo($user, ResetPassword::class);
     }
 
+    public function test_password_reset_email_uses_a_labeled_link_without_showing_the_url(): void
+    {
+        $user = User::factory()->create();
+        $mail = (new ResetPassword('test-reset-token'))->toMail($user);
+        $url = $mail->viewData['url'];
+        $html = (string) $mail->render();
+        $text = view($mail->view['text'], $mail->data())->render();
+
+        $this->assertStringContainsString('href="'.e($url).'"', $html);
+        $this->assertStringContainsString('Réinitialiser mon mot de passe', $html);
+        $this->assertStringNotContainsString($url, html_entity_decode(strip_tags($html)));
+        $this->assertStringContainsString('Réinitialiser mon mot de passe', $text);
+        $this->assertStringNotContainsString($url, $text);
+    }
+
     public function test_password_reset_request_without_a_previous_page_returns_to_the_request_form(): void
     {
         Notification::fake();
