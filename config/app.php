@@ -52,7 +52,13 @@ return [
     |
     */
 
-    'url' => env('APP_URL', 'http://localhost'),
+    'url' => env('APP_URL', env('RENDER_EXTERNAL_URL', 'http://localhost')),
+
+    'bootstrap_admin' => [
+        'name' => env('BOOTSTRAP_ADMIN_NAME'),
+        'email' => env('BOOTSTRAP_ADMIN_EMAIL'),
+        'password' => env('BOOTSTRAP_ADMIN_PASSWORD'),
+    ],
 
     /*
     |--------------------------------------------------------------------------

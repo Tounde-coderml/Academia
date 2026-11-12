@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
-use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class EpreuveController extends Controller
 {
@@ -168,7 +168,7 @@ class EpreuveController extends Controller
         $newPath = null;
 
         if ($file !== null) {
-            $newPath = $file->store('epreuves', 'local');
+            $newPath = $file->store('epreuves', $this->epreuvesDisk());
             if ($newPath === false) {
                 return back()->withErrors(['file' => 'Le fichier n’a pas pu être enregistré.']);
             }
@@ -184,13 +184,13 @@ class EpreuveController extends Controller
             $epreuve->update($attributes);
         } catch (\Throwable $exception) {
             if ($newPath !== null) {
-                Storage::disk('local')->delete($newPath);
+                Storage::disk($this->epreuvesDisk())->delete($newPath);
             }
             throw $exception;
         }
 
         if ($newPath !== null) {
-            Storage::disk('local')->delete($oldPath);
+            Storage::disk($this->epreuvesDisk())->delete($oldPath);
         }
 
         return to_route('admin.epreuves.index')->with('status', 'Épreuve modifiée.');
@@ -200,7 +200,7 @@ class EpreuveController extends Controller
     {
         $path = $epreuve->file_path;
         $epreuve->delete();
-        Storage::disk('local')->delete($path);
+        Storage::disk($this->epreuvesDisk())->delete($path);
 
         return to_route('admin.epreuves.index')->with('status', 'Épreuve supprimée.');
     }
@@ -208,7 +208,7 @@ class EpreuveController extends Controller
     public function store(StoreEpreuveRequest $request): RedirectResponse
     {
         $file = $request->file('file');
-        $path = $file->store('epreuves', 'local');
+        $path = $file->store('epreuves', $this->epreuvesDisk());
 
         if ($path === false) {
             return back()->withErrors(['file' => 'Le fichier n’a pas pu être enregistré.']);
@@ -226,7 +226,7 @@ class EpreuveController extends Controller
                 && ! $request->user()->hasRole('etudiant');
 
             if ($isDuplicate && $canPublishDirectly && ! $request->boolean('duplicate_confirmed')) {
-                Storage::disk('local')->delete($path);
+                Storage::disk($this->epreuvesDisk())->delete($path);
                 throw ValidationException::withMessages([
                     'duplicate' => 'Une épreuve identique existe. Confirme que tu veux poursuivre avant de la publier.',
                 ]);
@@ -244,7 +244,7 @@ class EpreuveController extends Controller
 
             Epreuve::create($attributes);
         } catch (\Throwable $exception) {
-            Storage::disk('local')->delete($path);
+            Storage::disk($this->epreuvesDisk())->delete($path);
             throw $exception;
         }
 
@@ -287,7 +287,7 @@ class EpreuveController extends Controller
         return to_route('epreuves.review')->with('status', 'Épreuve refusée.');
     }
 
-    public function file(Request $request, Epreuve $epreuve): BinaryFileResponse
+    public function file(Request $request, Epreuve $epreuve): StreamedResponse
     {
         abort_unless(
             $epreuve->status === 'published'
@@ -295,7 +295,8 @@ class EpreuveController extends Controller
                 || $request->user()->can('exams.review'),
             404,
         );
-        abort_unless(Storage::disk('local')->exists($epreuve->file_path), 404);
+        $disk = Storage::disk($this->epreuvesDisk());
+        abort_unless($disk->exists($epreuve->file_path), 404);
         $downloadName = preg_replace('/[^A-Za-z0-9._-]/', '_', basename($epreuve->original_filename)) ?: 'epreuve';
         $isPreview = $request->boolean('preview');
         $previewableMimeTypes = ['application/pdf', 'image/jpeg', 'image/png'];
@@ -308,14 +309,20 @@ class EpreuveController extends Controller
             defer(fn () => EpreuveTelechargee::dispatch($userId, $epreuveId));
         }
 
-        $response = response()->file(Storage::disk('local')->path($epreuve->file_path), [
+        $response = $disk->response($epreuve->file_path, $downloadName, [
             'Content-Type' => $epreuve->mime_type,
             'Content-Disposition' => ($isPreview ? 'inline' : 'attachment').'; filename="'.$downloadName.'"',
+            'Content-Length' => (string) $epreuve->file_size,
             'X-Content-Type-Options' => 'nosniff',
             'Cache-Control' => 'no-store',
         ]);
 
         return $response->setPrivate();
+    }
+
+    private function epreuvesDisk(): string
+    {
+        return (string) config('filesystems.epreuves_disk', 'local');
     }
 
     /** @return list<string> */

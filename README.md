@@ -71,6 +71,18 @@ Le fichier `.env.example` utilise `MAIL_MAILER=log`. Avec cette configuration, l
 
 Ne publiez jamais les secrets SMTP ou le fichier `.env` dans le dépôt.
 
+## Déploiement gratuit
+
+Le dépôt inclut un `Dockerfile` et un Blueprint Render (`render.yaml`) pour héberger l’application sur Render avec PostgreSQL et un stockage objet compatible S3 séparés. Le plan gratuit Render peut mettre le site en veille après une période d’inactivité : le premier accès suivant peut être lent. Les quotas et conditions des offres gratuites peuvent évoluer.
+
+1. Poussez le dépôt sur GitHub, puis créez le service Render à partir du Blueprint `render.yaml`.
+2. Créez une base PostgreSQL et un bucket privé compatible S3. Renseignez les variables d’environnement demandées par Render dans son tableau de bord, notamment `DB_URL`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_ENDPOINT_URL_S3`, `AWS_DEFAULT_REGION` et `AWS_BUCKET`.
+3. Configurez `APP_KEY` avec une clé Laravel générée localement (`php artisan key:generate --show`), ainsi que les variables `MAIL_*` avec les identifiants d’un service SMTP. Ne partagez et ne commitez jamais ces secrets.
+4. Pour le premier démarrage uniquement, renseignez `BOOTSTRAP_ADMIN_NAME`, `BOOTSTRAP_ADMIN_EMAIL` et un `BOOTSTRAP_ADMIN_PASSWORD` fort d’au moins 15 caractères. Le compte créé est vérifié et reçoit le rôle administrateur. Après confirmation de sa création, supprimez ces trois variables de Render.
+5. Attendez la fin du déploiement et vérifiez que le contrôle de santé `/login` réussit. Les migrations sont exécutées au démarrage ; les fichiers déposés sont stockés sur le bucket privé afin de survivre aux redémarrages de Render.
+
+Configurez les comptes et les secrets directement dans les tableaux de bord des fournisseurs, jamais dans le dépôt ni dans une conversation.
+
 ## Lancement en développement
 
 Démarrez les processus nécessaires avec :
@@ -106,7 +118,7 @@ Une vérification de formatage Prettier est également disponible :
 npm run format:check
 ```
 
-Le workflow [GitHub Actions](.github/workflows/ci.yml) s’exécute à chaque push et pull request. Il lance Pint, les tests PHP et frontend, le contrôle des types, ESLint et le build avec un service MySQL temporaire.
+Le workflow [GitHub Actions](.github/workflows/ci.yml) s’exécute à chaque push et pull request. Il lance Pint, les tests PHP et frontend, le contrôle des types, ESLint et le build avec des services MySQL et PostgreSQL temporaires.
 
 ## Structure du dépôt
 
@@ -119,6 +131,9 @@ routes/web.php           Routes web et protections d’accès
 tests/                   Tests PHPUnit et Vitest
 docs/modules/            Plans fonctionnels et techniques M1 à M4
 .github/workflows/       Automatisations GitHub Actions
+docker/                  Configuration Apache et PHP pour l’image de déploiement
+Dockerfile               Image de production
+render.yaml              Blueprint Render
 ```
 
 ## Sécurité
